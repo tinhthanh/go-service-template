@@ -182,3 +182,11 @@ func (s *Store) Tags(_ context.Context, workspaces []string) ([]string, error) {
 func (s *Store) index(id string) int {
 	return slices.IndexFunc(s.rows, func(p projects.Project) bool { return p.ID == id })
 }
+
+// All is every project kept, for a test's other stores (search) to read.
+func (s *Store) All() []projects.Project {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return slices.Clone(s.rows)
+}

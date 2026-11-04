@@ -21,6 +21,8 @@ import (
 	"github.com/tinhthanh/go-service-template/internal/platform/contracttest"
 	"github.com/tinhthanh/go-service-template/internal/projects"
 	"github.com/tinhthanh/go-service-template/internal/projects/projectstest"
+	"github.com/tinhthanh/go-service-template/internal/search"
+	"github.com/tinhthanh/go-service-template/internal/search/searchtest"
 	"github.com/tinhthanh/go-service-template/internal/server"
 	"github.com/tinhthanh/go-service-template/internal/session"
 	"github.com/tinhthanh/go-service-template/internal/session/sessiontest"
@@ -128,6 +130,7 @@ func New(t *testing.T) *Server {
 		Workspaces: workspaces.NewHandler(workspaces.New(ws)),
 		Projects:   projects.NewHandler(projects.New(prs)),
 		Tasks:      tasks.NewHandler(tasks.New(tks, clock.Now)),
+		Search:     search.NewHandler(search.New(searchtest.New(func() []searchtest.Row { return found(prs, tks) }))),
 	})
 	require.NoError(t, err)
 
@@ -164,4 +167,32 @@ func (s *Server) As(who string) map[string]string {
 	email := map[string]string{Owner: "owner@acme.test", Member: "member@acme.test", Viewer: "viewer@acme.test"}[who]
 
 	return map[string]string{"Cookie": s.SignIn(email)}
+}
+
+// found is every project and task, as search's store in memory reads them: a task's detail is its
+// project's name as it is now.
+func found(prs *projectstest.Store, tks *taskstest.Store) []searchtest.Row {
+	names := map[string]string{}
+	rows := []searchtest.Row{}
+
+	all := prs.All()
+	for i := range all {
+		p := &all[i]
+		names[p.ID] = p.Name
+		rows = append(rows, searchtest.Row{
+			Kind: "project", ID: p.ID, Name: p.Name, Detail: p.Owner, Status: p.Status,
+			Text: p.Description + " " + p.Owner, Workspace: p.Workspace,
+		})
+	}
+
+	ts := tks.All()
+	for i := range ts {
+		t := &ts[i]
+		rows = append(rows, searchtest.Row{
+			Kind: "task", ID: t.ID, Name: t.Title, Detail: names[t.Project], Status: t.Status,
+			Text: names[t.Project], Workspace: t.Workspace,
+		})
+	}
+
+	return rows
 }

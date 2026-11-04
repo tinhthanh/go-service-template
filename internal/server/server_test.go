@@ -43,7 +43,6 @@ func TestServer_AnOperationNotBuiltSaysSoInTheContractsWords(t *testing.T) {
 		method, path, body string
 		header             map[string]string
 	}{
-		{http.MethodGet, "/search?q=shop", "", nil},
 		{http.MethodPost, "/files", "a note", map[string]string{"Content-Type": "text/plain", "X-File-Name": "note.txt"}},
 	} {
 		header := map[string]string{}
