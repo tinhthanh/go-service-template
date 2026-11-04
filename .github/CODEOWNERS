@@ -1,0 +1,3 @@
+# Everything is the owner's to approve; the checks in particular, which a
+# pull request changes only with the guardrail-change label (tools/gates).
+*                   @tinhthanh

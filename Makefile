@@ -8,6 +8,9 @@
 SHELL := /bin/bash
 
 GEN_TMP := $(shell mktemp -d 2>/dev/null || echo /tmp/gen-check)
+# make run and make seed read .env, or .env.example when there is none.
+ENV_FILE := $(if $(wildcard .env),.env,.env.example)
+WITH_ENV := set -a && . ./$(ENV_FILE) && set +a &&
 
 help: ## List the targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-z-]+:.*## / { printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -65,9 +68,15 @@ db-up: ## A Postgres for make run, on :5432 (docker compose)
 	docker compose up -d --wait db
 .PHONY: db-up
 
-seed: ## The acme people and workspace, for signing in on a laptop
-	go run ./tools/seed
+seed: ## The acme people and workspace, for signing in on a laptop (DATABASE_URL from .env or .env.example)
+	$(WITH_ENV) go run ./tools/seed
 .PHONY: seed
+
+gates: ## The pull request's gates on what is committed: PR_TITLE, PR_BODY, PR_LABELS in env; BASE_SHA when the branch isn't off main
+	git fetch -q origin main
+	go run ./tools/gates evidence
+	go run ./tools/gates guardrails
+.PHONY: gates
 
 contract-sync: ## Copy the client's contract in: make contract-sync FROM=<the client's repository>
 	@test -n "$(FROM)" || (echo "contract-sync: make contract-sync FROM=<the client's repository, with api/openapi.json>"; exit 1)
@@ -75,6 +84,6 @@ contract-sync: ## Copy the client's contract in: make contract-sync FROM=<the cl
 	$(MAKE) generate
 .PHONY: contract-sync
 
-run: ## Run the server on :8080 (settings from the environment, .env.example)
-	go run ./cmd/server
+run: ## Run the server on :8080 (settings from .env, or .env.example)
+	$(WITH_ENV) go run ./cmd/server
 .PHONY: run

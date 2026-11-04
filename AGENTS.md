@@ -67,7 +67,11 @@ tools/                  stubgen (the 501 stubs), hooks (Claude Code's)
   `problem.ErrNotFound`, as if it weren't there (`p.Belongs(workspace)`).
 - Every write carries `X-Requested-With: XMLHttpRequest` (CSRF); the client sends it.
 - A refusal of a value the rules don't allow is `problem.Invalid(field, words)` (422, as the client's
-  mock answers); a request the contract refuses is 400 before the handler runs.
+  mock answers); a request the contract refuses is 400 before the handler runs. The client reads
+  `code` and `field`, not the status, so where the mock answers 422 for a shape the contract
+  already refuses (a day that isn't one), 400 is right.
+- A PATCH field the contract lets be `null` ("takes it off") is generated as a pointer, nil for null
+  and for left out alike: `httpx.SentNull(ctx, "due")` tells them apart.
 
 ## Lists
 
@@ -82,7 +86,8 @@ person typed are matched with `strpos`, never `LIKE`, so they are never a patter
 
 - **A package per feature.** A feature imports `internal/api` and `internal/platform`, never another
   feature: it declares the small interface it needs, and `internal/server` passes the other in.
-  `internal/platform` knows no feature. `internal/archtest` fails the build otherwise.
+  `internal/platform` knows no feature. `internal/archtest` fails the build otherwise. In SQL a
+  feature may read another's table to show it (a task's project name, by JOIN) but never writes it.
 - **Errors** are wrapped with `%w` and context (`fmt.Errorf("projects: store: %w", err)`), compared
   with `errors.Is`/`errors.As`, handled once (returned or logged, never both).
 - **Context** is the first argument of anything that does I/O, and is never kept in a struct.
@@ -110,6 +115,14 @@ Tests are named as what the caller gets (`TestServer_ARequestTheContractRefusesI
 use testify's `require` for what must hold before going on and `assert` for the rest, and never
 wait on time: `s.Clock().Advance(d)` moves the server's clock (sessions take `now` as a function).
 
+## Recipes
+
+Each change has a skill in `.claude/skills/` that is its checklist: load it before you start, and
+follow it step by step. `add-feature` (a resource no feature serves), `add-operation` (one more
+operation of a feature), `add-migration`, `open-pr` (CI's gates, run here first), `fix-ci`, and
+`trial` (measure the template on a fresh agent). The `reviewer` agent
+(`.claude/agents/reviewer.md`) reads a diff against these rules before a pull request.
+
 ## Done means
 
 1. `make check` is green; before a pull request, `make verify` (Docker running).
@@ -117,4 +130,8 @@ wait on time: `s.Clock().Advance(d)` moves the server's clock (sessions take `no
 3. A choice the next person would ask about has an ADR in `docs/decisions/`.
 4. A change a client would notice has a line under `## Unreleased` in `CHANGELOG.md`.
 5. The work is on a branch, as a pull request against `main`, with a lowercase conventional subject
-   (`feat: …`, `fix: …`, `docs: …`, `chore: …`) that says what the client gets.
+   (`feat: …`, `fix: …`, `docs: …`, `chore: …`) that says what the client gets, and its body from
+   the template. CI's gates (`make gates`) refuse a behaviour change with no test changed (or a
+   `no-test: <why>` line), a client-visible change with no CHANGELOG line, a `feat:` without
+   Assumptions and Not done, an added `t.Skip` or bare `//nolint`, and a change to the checks
+   themselves without the `guardrail-change` label.

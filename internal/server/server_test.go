@@ -66,6 +66,10 @@ func TestServer_ARequestTheContractRefusesIsInvalidOnItsField(t *testing.T) {
 	wrong := c.Do(http.MethodPost, "/projects", `{"name": 7, "description": "x"}`, nil)
 	assert.Contains(t, string(wrong.Body), `"field":"name"`, "a value of the wrong type")
 
+	day := c.Do(http.MethodPost, "/tasks", `{"title": "X", "due": "tomorrow"}`, nil)
+	assert.Equal(t, http.StatusBadRequest, day.Status)
+	assert.Contains(t, string(day.Body), `"field":"due"`, "a value none of anyOf's schemas takes (a day, or null)")
+
 	status := c.Do(http.MethodGet, "/projects?status=sleeping", "", nil)
 	assert.Equal(t, http.StatusBadRequest, status.Status)
 	assert.Contains(t, string(status.Body), `"field":"status"`)

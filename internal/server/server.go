@@ -89,8 +89,9 @@ func New(cfg *config.Config, log *slog.Logger, f Features) (http.Handler, error)
 	})
 
 	mux := http.NewServeMux()
-	// A write needs the app's header (CSRF), then the caller is found, then the request is held to the contract.
-	guarded := httpx.Chain(validate(contract), auth.CSRF(log), auth.Middleware(f.Auth, log))
+	// A write needs the app's header (CSRF), then the caller is found, then the fields a change sends as
+	// null are noted (httpx.Nulls), then the request is held to the contract.
+	guarded := httpx.Chain(validate(contract), auth.CSRF(log), auth.Middleware(f.Auth, log), httpx.Nulls())
 	mux.Handle(cfg.APIPrefix+"/", http.StripPrefix(cfg.APIPrefix, guarded))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
 
@@ -132,6 +133,12 @@ func invalid(err error) error {
 			}
 
 			return problem.Malformed(field, "This value isn't accepted here.")
+		}
+
+		// A reason that names no field (anyOf: a day that isn't one, where null is allowed too) is
+		// still about the value at its pointer.
+		if at := schemaErr.JSONPointer(); len(at) > 0 {
+			return problem.Malformed(at[0], "This value isn't accepted here.")
 		}
 	}
 
