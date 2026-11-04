@@ -1,0 +1,22 @@
+# sqlc reads the migrations and each feature's queries.sql, and writes typed
+# Go beside them (internal/<feature>/db): a wrong column fails make generate.
+# A feature's block is copied from session's, its paths changed.
+version: "2"
+overrides:
+  go:
+    overrides:
+      - db_type: uuid
+        go_type: string
+      - db_type: timestamptz
+        go_type: time.Time
+sql:
+  - engine: postgresql
+    schema: migrations
+    queries: internal/session/queries.sql
+    gen:
+      go:
+        package: db
+        out: internal/session/db
+        sql_package: pgx/v5
+        emit_empty_slices: true
+        output_files_suffix: .gen

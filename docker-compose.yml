@@ -1,0 +1,18 @@
+# A Postgres for make run on a laptop (make db-up). Tests start their own (dbtest).
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: acme
+      POSTGRES_PASSWORD: acme
+      POSTGRES_DB: acme
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "acme"]
+      interval: 2s
+      retries: 15
+    volumes:
+      - db:/var/lib/postgresql
+volumes:
+  db:

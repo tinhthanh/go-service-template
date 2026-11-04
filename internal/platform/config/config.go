@@ -25,6 +25,16 @@ type Config struct {
 	CORSOrigins []string `env:"CORS_ORIGINS" envSeparator:","`
 	// ShutdownTimeout is how long requests in flight get to finish on a stop.
 	ShutdownTimeout time.Duration `env:"SHUTDOWN_TIMEOUT" envDefault:"10s"`
+	// DatabaseURL is the Postgres the service keeps its data in.
+	DatabaseURL string `env:"DATABASE_URL,required,notEmpty"`
+	// MigrateOnStart applies the migrations not yet applied before serving.
+	MigrateOnStart bool `env:"MIGRATE_ON_START" envDefault:"true"`
+	// CookieSecure sends the session cookies over HTTPS only; off only for plain HTTP on a laptop.
+	CookieSecure bool `env:"COOKIE_SECURE" envDefault:"true"`
+	// SessionLength is how long a session lasts before the client asks for a longer one.
+	SessionLength time.Duration `env:"SESSION_LENGTH" envDefault:"8h"`
+	// RefreshLength is how long a session may be renewed for, from the last sign-in or renewal.
+	RefreshLength time.Duration `env:"REFRESH_LENGTH" envDefault:"168h"`
 }
 
 // Load reads the environment. A value that can't be read is refused by

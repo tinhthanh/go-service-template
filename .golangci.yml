@@ -7,6 +7,7 @@ version: "2"
 
 run:
   timeout: 5m
+  build-tags: [integration]
 
 linters:
   default: none
@@ -76,7 +77,8 @@ linters:
     dupl:
       threshold: 150
     ireturn:
-      allow: [error, stdlib, empty, generic]
+      # A handler answers the generated ...ResponseObject, as oapi-codegen's strict server asks.
+      allow: [error, stdlib, empty, generic, "ResponseObject$"]
     wrapcheck:
       # This module's own errors already carry their context (problem.Invalid, a
       # feature's wrapped error); what comes from another module is wrapped.

@@ -69,8 +69,19 @@ func afterEdit(file string) string {
 	switch {
 	case rel == filepath.Join("api", "openapi.json"):
 		return "api/openapi.json is the client's contract: change it in the client's repository, then make contract-sync FROM=<it> (AGENTS.md › The contract)."
-	case strings.HasSuffix(rel, ".gen.go"):
-		return rel + " is generated: change what it is made from (api/openapi.json, tools/stubgen) and run make generate."
+	case strings.HasSuffix(rel, ".go") && generated(file):
+		return rel + " is generated: change what it is made from (api/openapi.json, a queries.sql, a migration, tools/stubgen) and run make generate."
+	case strings.HasSuffix(rel, ".sql"):
+		// A query or a migration: sqlc types every query against the schema, so a wrong column shows now.
+		if out, ok := run("go", "tool", "sqlc", "generate"); !ok {
+			return "sqlc refuses the queries against the migrations; fix it now:\n" + tail(out)
+		}
+
+		if out, ok := run("go", "vet", "./..."); !ok {
+			return "the generated queries no longer fit the code that calls them; fix it now:\n" + tail(out)
+		}
+
+		return ""
 	case !strings.HasSuffix(rel, ".go"):
 		return ""
 	}
@@ -107,6 +118,20 @@ func stop(active bool) string {
 	}
 
 	return ""
+}
+
+// generated says whether the file says it is generated, as Go's convention writes it.
+func generated(file string) bool {
+	f, err := os.Open(file) //nolint:gosec // the file the agent just edited, in this repository
+	if err != nil {
+		return false
+	}
+	defer func() { _ = f.Close() }()
+
+	head := make([]byte, 512) //nolint:mnd // enough for the first lines
+	n, _ := f.Read(head)
+
+	return strings.Contains(string(head[:n]), "Code generated") && strings.Contains(string(head[:n]), "DO NOT EDIT")
 }
 
 func run(name string, args ...string) (string, bool) {

@@ -5,10 +5,10 @@
 package problem
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 )
 
@@ -23,9 +23,12 @@ var (
 )
 
 // FieldError is ErrInvalid on one field, with the words the form puts beside it.
+// Status is 422 for a value the rules refuse (Invalid), 400 for a request
+// the contract refuses (Malformed): the client puts either on the field.
 type FieldError struct {
 	Field   string
 	Message string
+	Status  int
 }
 
 func (e *FieldError) Error() string { return fmt.Sprintf("invalid %s: %s", e.Field, e.Message) }
@@ -33,8 +36,15 @@ func (e *FieldError) Error() string { return fmt.Sprintf("invalid %s: %s", e.Fie
 // Unwrap makes errors.Is(err, ErrInvalid) true.
 func (e *FieldError) Unwrap() error { return ErrInvalid }
 
-// Invalid refuses one field's value.
-func Invalid(field, message string) error { return &FieldError{Field: field, Message: message} }
+// Invalid refuses a value the rules don't allow: an empty name, a name taken (422).
+func Invalid(field, message string) error {
+	return &FieldError{Field: field, Message: message, Status: http.StatusUnprocessableEntity}
+}
+
+// Malformed refuses a request the contract doesn't allow: a field missing, of the wrong type (400).
+func Malformed(field, message string) error {
+	return &FieldError{Field: field, Message: message, Status: http.StatusBadRequest}
+}
 
 // Body is the contract's Error.
 type Body struct {
@@ -46,7 +56,7 @@ type Body struct {
 // Of is a refusal's status and body; anything not named above is a 500.
 func Of(err error) (int, Body) {
 	if field, ok := errors.AsType[*FieldError](err); ok {
-		return http.StatusBadRequest, Body{Error: field.Message, Code: "invalid", Field: field.Field}
+		return field.Status, Body{Error: field.Message, Code: "invalid", Field: field.Field}
 	}
 
 	for _, k := range kinds() {
@@ -76,8 +86,13 @@ func kinds() []kind {
 	}
 }
 
+// Logger is what Write logs a 500 to (a *slog.Logger).
+type Logger interface {
+	ErrorContext(ctx context.Context, msg string, args ...any)
+}
+
 // Write answers a refusal; a 500's error is logged with the request it failed.
-func Write(w http.ResponseWriter, r *http.Request, log *slog.Logger, err error) {
+func Write(w http.ResponseWriter, r *http.Request, log Logger, err error) {
 	status, body := Of(err)
 	if status >= http.StatusInternalServerError && status != http.StatusNotImplemented {
 		log.ErrorContext(r.Context(), "request failed", "method", r.Method, "path", r.URL.Path, "err", err)
