@@ -1,0 +1,132 @@
+# The checks every change meets (make lint). Chosen from the Google and Uber
+# Go style guides, Effective Go and Code Review Comments, keeping the ones a
+# tool can decide and dropping those that only move blank lines about
+# (docs/decisions/0006-lint.md). The architecture's rules are a test of
+# their own: internal/archtest.
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: none
+  enable:
+    # Bugs and correctness.
+    - errcheck
+    - govet
+    - staticcheck
+    - ineffassign
+    - unused
+    - bodyclose
+    - rowserrcheck
+    - sqlclosecheck
+    - noctx
+    - gosec
+    - exhaustive
+    - reassign
+    - durationcheck
+    - nilerr
+    - nilnil
+    # Errors: wrapped with %w, compared with errors.Is/As, named Err… and …Error.
+    - errorlint
+    - wrapcheck
+    - errname
+    - err113
+    # Context: first argument, never kept in a struct, never dropped.
+    - containedctx
+    - contextcheck
+    - fatcontext
+    # Design: accept interfaces, return structs; small interfaces; no globals or init.
+    - ireturn
+    - iface
+    - interfacebloat
+    - recvcheck
+    - gochecknoglobals
+    - gochecknoinits
+    - revive
+    - gocritic
+    - gocognit
+    - dupl
+    - musttag
+    - errchkjson
+    # Modern Go, so an agent's older idioms are caught.
+    - modernize
+    - intrange
+    - copyloopvar
+    - usestdlibvars
+    # Tests.
+    - testifylint
+    - thelper
+    - tparallel
+    - paralleltest
+    - usetesting
+    # A //nolint names its linter and says why.
+    - nolintlint
+    - forbidigo
+  settings:
+    govet:
+      enable-all: true
+      disable: [fieldalignment, shadow]
+    staticcheck:
+      checks: ["all", "-ST1000"]
+    errcheck:
+      check-type-assertions: true
+    gocognit:
+      min-complexity: 15
+    dupl:
+      threshold: 150
+    ireturn:
+      allow: [error, stdlib, empty, generic]
+    wrapcheck:
+      # This module's own errors already carry their context (problem.Invalid, a
+      # feature's wrapped error); what comes from another module is wrapped.
+      ignore-package-globs:
+        - github.com/tinhthanh/go-service-template/*
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    forbidigo:
+      forbid:
+        - pattern: ^fmt\.Print.*$
+          msg: "write through the *slog.Logger the handler was given; stdout is the log's"
+        - pattern: ^log\.(Print|Fatal|Panic).*$
+          msg: "use the *slog.Logger; only cmd/ and tools/ may stop the process"
+    revive:
+      rules:
+        - name: package-comments
+        - name: exported
+        - name: var-naming
+        - name: package-directory-mismatch
+        - name: error-strings
+        - name: error-naming
+        - name: error-return
+        - name: receiver-naming
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: indent-error-flow
+        - name: superfluous-else
+        - name: unexported-return
+        - name: unused-parameter
+        - name: deep-exit
+        - name: redefines-builtin-id
+    gocritic:
+      enabled-tags: [diagnostic, performance, style]
+      disabled-checks: [hugeParam, unnamedResult, paramTypeCombine]
+  exclusions:
+    generated: strict
+    rules:
+      - path: _test\.go
+        linters: [dupl, err113, wrapcheck, gosec, containedctx]
+      - path: ^(cmd|tools)/
+        linters: [forbidigo, revive]
+        text: "deep-exit|log\\.|fmt\\.Print"
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes: [github.com/tinhthanh/go-service-template]
+  exclusions:
+    generated: strict

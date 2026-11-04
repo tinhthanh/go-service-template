@@ -1,0 +1,12 @@
+#!/bin/sh
+# The subject is a lowercase conventional one that says what the user gets
+# (AGENTS.md › Done means): feat: …, fix: …, test: …, docs: …, ci: …, chore: …
+subject=$(head -n1 "$1")
+case "$subject" in
+  Merge\ *|Revert\ *|fixup!*|squash!*) exit 0 ;;
+esac
+if ! printf '%s\n' "$subject" | grep -Eq '^(feat|fix|test|docs|ci|chore|refactor|perf|build|release)(\([a-z0-9-]+\))?!?: [a-z]'; then
+  echo "commit-msg: the subject must be a lowercase conventional one, such as 'fix: a refused save names its field', got:" >&2
+  echo "  $subject" >&2
+  exit 1
+fi

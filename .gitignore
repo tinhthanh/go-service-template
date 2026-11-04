@@ -1,0 +1,6 @@
+# The hooks' binary, built by .claude/settings.json before each run.
+/.claude/bin/
+# Local settings and secrets.
+.env
+.claude/settings.local.json
+coverage.out

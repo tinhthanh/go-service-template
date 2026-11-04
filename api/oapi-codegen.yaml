@@ -1,0 +1,9 @@
+# oapi-codegen turns the client's contract (api/openapi.json, never edited
+# here) into internal/api/api.gen.go: the models, a net/http router and the
+# strict server interface every operation is a method of. make generate.
+package: api
+generate:
+  std-http-server: true
+  strict-server: true
+  models: true
+  embedded-spec: true
