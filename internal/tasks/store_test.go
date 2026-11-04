@@ -3,14 +3,19 @@
 package tasks_test
 
 import (
+	"os"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/tinhthanh/go-service-template/internal/platform/dbtest"
+	pages "github.com/tinhthanh/go-service-template/internal/platform/page"
 	"github.com/tinhthanh/go-service-template/internal/platform/problem"
 	"github.com/tinhthanh/go-service-template/internal/tasks"
 )
@@ -65,7 +70,7 @@ func listedTasks(t *testing.T, s *tasks.PGStore, q tasks.Query) ([]string, tasks
 	}
 
 	if q.Limit == 0 {
-		q.Limit = tasks.PageSize
+		q.Limit = pages.Size
 	}
 
 	q.Today = *on("2026-11-04")
@@ -247,4 +252,54 @@ func TestPGStore_DeleteRemovesTheTask(t *testing.T) {
 
 	_, err := s.Get(t.Context(), ids["New icons"])
 	require.ErrorIs(t, err, problem.ErrNotFound)
+}
+
+// A task is found by its primary key's index: the store's own query, as queries.sql writes it,
+// compares ids as UUIDs, never as text.
+func TestPGStore_ATaskIsFoundByItsKeysIndex(t *testing.T) {
+	t.Parallel()
+
+	pool, _, ids := acmeDB(t)
+
+	tx, err := pool.Begin(t.Context())
+	require.NoError(t, err)
+
+	defer func() { _ = tx.Rollback(t.Context()) }()
+
+	_, err = tx.Exec(t.Context(), "SET LOCAL enable_seqscan = off")
+	require.NoError(t, err)
+
+	src, err := os.ReadFile("queries.sql")
+	require.NoError(t, err)
+
+	m := regexp.MustCompile(`(?s)-- name: Task :one\n(.*?);`).FindSubmatch(src)
+	require.NotNil(t, m, "queries.sql has the Task query")
+
+	query := regexp.MustCompile(`@id(::\w+)?`).ReplaceAllString(string(m[1]), "$$1")
+
+	// The whole plan: a join's first line is the join, its index scan below.
+	rows, err := tx.Query(t.Context(), "EXPLAIN "+query, ids["Fix the checkout"])
+	require.NoError(t, err)
+
+	lines, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	require.NoError(t, err)
+
+	plan := strings.Join(lines, "\n")
+	assert.Contains(t, plan, "tasks_pkey", query)
+}
+
+func TestPGStore_AnIDThatIsntOneIsNoTaskAndNoProject(t *testing.T) {
+	t.Parallel()
+
+	_, s, _ := acmeDB(t)
+
+	_, err := s.Get(t.Context(), "not-a-uuid")
+	require.ErrorIs(t, err, problem.ErrNotFound)
+
+	_, err = s.ProjectName(t.Context(), "w-acme", "not-a-uuid")
+	require.ErrorIs(t, err, problem.ErrNotFound)
+
+	titles, counts := listedTasks(t, s, tasks.Query{Project: "not-a-uuid"})
+	assert.Empty(t, titles)
+	assert.Zero(t, counts.Total)
 }

@@ -36,6 +36,20 @@ type Principal struct {
 // Belongs says whether the person is in the workspace.
 func (p *Principal) Belongs(workspace string) bool { return slices.Contains(p.Workspaces, workspace) }
 
+// Scope is what a read covers: the caller's workspaces, or the one asked
+// when it is theirs; one that isn't is problem.ErrNotFound, as if it weren't there.
+func (p *Principal) Scope(asked string) ([]string, error) {
+	if asked == "" {
+		return p.Workspaces, nil
+	}
+
+	if !p.Belongs(asked) {
+		return nil, problem.ErrNotFound
+	}
+
+	return []string{asked}, nil
+}
+
 // Authenticator finds the person a session token names, or problem.ErrUnauthorized.
 type Authenticator interface {
 	Authenticate(ctx context.Context, token string) (Principal, error)

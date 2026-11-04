@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	pages "github.com/tinhthanh/go-service-template/internal/platform/page"
 	"github.com/tinhthanh/go-service-template/internal/server/servertest"
 	"github.com/tinhthanh/go-service-template/internal/tasks"
 )
@@ -182,7 +183,7 @@ func TestTasks_APageOfMoreThanTheMostIsRefused(t *testing.T) {
 	t.Parallel()
 
 	s := acme(t)
-	a := s.Do(http.MethodGet, fmt.Sprintf("/tasks?limit=%d", tasks.MaxPage+1), "", s.As(servertest.Member))
+	a := s.Do(http.MethodGet, fmt.Sprintf("/tasks?limit=%d", pages.Max+1), "", s.As(servertest.Member))
 
 	assert.Equal(t, http.StatusUnprocessableEntity, a.Status)
 	assert.Contains(t, string(a.Body), `"field":"limit"`)

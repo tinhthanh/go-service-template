@@ -42,7 +42,7 @@ type Task struct {
 	Title       string
 	Status      string
 	Due         pgtype.Date
-	ProjectID   pgtype.UUID
+	ProjectID   *string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }

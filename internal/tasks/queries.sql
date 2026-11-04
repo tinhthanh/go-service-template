@@ -13,7 +13,7 @@ WHERE t.workspace_id = ANY (@workspaces::text[])
   AND (@q::text = '' OR strpos(lower(t.title || ' ' || coalesce(p.name, '')), lower(@q)) > 0)
   AND (@status::text = '' OR t.status = @status)
   AND (NOT @hide_done::bool OR t.status <> 'done')
-  AND (@project::text = '' OR t.project_id::text = @project)
+  AND (sqlc.narg('project')::uuid IS NULL OR t.project_id = sqlc.narg('project')::uuid)
 ORDER BY
   CASE WHEN @sort::text = 'title' AND NOT @descending::bool THEN lower(t.title) END ASC,
   CASE WHEN @sort = 'title' AND @descending THEN lower(t.title) END DESC,
@@ -34,17 +34,17 @@ WHERE t.workspace_id = ANY (@workspaces::text[])
   AND (@q::text = '' OR strpos(lower(t.title || ' ' || coalesce(p.name, '')), lower(@q)) > 0)
   AND (@status::text = '' OR t.status = @status)
   AND (NOT @hide_done::bool OR t.status <> 'done')
-  AND (@project::text = '' OR t.project_id::text = @project);
+  AND (sqlc.narg('project')::uuid IS NULL OR t.project_id = sqlc.narg('project')::uuid);
 
 -- name: Task :one
 SELECT t.id, t.workspace_id, t.title, t.status, t.due, t.updated_at,
        coalesce(p.id::text, '')::text AS project_id, coalesce(p.name, '')::text AS project_name
 FROM tasks t
 LEFT JOIN projects p ON p.id = t.project_id
-WHERE t.id::text = @id::text;
+WHERE t.id = @id;
 
 -- name: ProjectName :one
-SELECT name FROM projects WHERE id::text = @id::text AND workspace_id = @workspace_id;
+SELECT name FROM projects WHERE id = @id AND workspace_id = @workspace_id;
 
 -- name: CreateTask :one
 INSERT INTO tasks (workspace_id, title, status, due, project_id)
@@ -54,8 +54,8 @@ RETURNING id;
 -- name: UpdateTask :one
 UPDATE tasks
 SET title = @title, status = @status, due = sqlc.narg(due), project_id = NULLIF(@project_id::text, '')::uuid, updated_at = now()
-WHERE id::text = @id::text
+WHERE id = @id
 RETURNING id;
 
 -- name: DeleteTask :exec
-DELETE FROM tasks WHERE id::text = @id::text;
+DELETE FROM tasks WHERE id = @id;

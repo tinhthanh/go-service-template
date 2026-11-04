@@ -21,7 +21,7 @@ WHERE t.workspace_id = ANY ($2::text[])
   AND ($3::text = '' OR strpos(lower(t.title || ' ' || coalesce(p.name, '')), lower($3)) > 0)
   AND ($4::text = '' OR t.status = $4)
   AND (NOT $5::bool OR t.status <> 'done')
-  AND ($6::text = '' OR t.project_id::text = $6)
+  AND ($6::uuid IS NULL OR t.project_id = $6::uuid)
 `
 
 type CountTasksParams struct {
@@ -30,7 +30,7 @@ type CountTasksParams struct {
 	Q          string
 	Status     string
 	HideDone   bool
-	Project    string
+	Project    *string
 }
 
 type CountTasksRow struct {
@@ -81,7 +81,7 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (string,
 }
 
 const deleteTask = `-- name: DeleteTask :exec
-DELETE FROM tasks WHERE id::text = $1::text
+DELETE FROM tasks WHERE id = $1
 `
 
 func (q *Queries) DeleteTask(ctx context.Context, id string) error {
@@ -99,7 +99,7 @@ WHERE t.workspace_id = ANY ($1::text[])
   AND ($2::text = '' OR strpos(lower(t.title || ' ' || coalesce(p.name, '')), lower($2)) > 0)
   AND ($3::text = '' OR t.status = $3)
   AND (NOT $4::bool OR t.status <> 'done')
-  AND ($5::text = '' OR t.project_id::text = $5)
+  AND ($5::uuid IS NULL OR t.project_id = $5::uuid)
 ORDER BY
   CASE WHEN $6::text = 'title' AND NOT $7::bool THEN lower(t.title) END ASC,
   CASE WHEN $6 = 'title' AND $7 THEN lower(t.title) END DESC,
@@ -116,7 +116,7 @@ type ListTasksParams struct {
 	Q          string
 	Status     string
 	HideDone   bool
-	Project    string
+	Project    *string
 	Sort       string
 	Descending bool
 	Off        int32
@@ -179,7 +179,7 @@ func (q *Queries) ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTas
 }
 
 const projectName = `-- name: ProjectName :one
-SELECT name FROM projects WHERE id::text = $1::text AND workspace_id = $2
+SELECT name FROM projects WHERE id = $1 AND workspace_id = $2
 `
 
 type ProjectNameParams struct {
@@ -199,7 +199,7 @@ SELECT t.id, t.workspace_id, t.title, t.status, t.due, t.updated_at,
        coalesce(p.id::text, '')::text AS project_id, coalesce(p.name, '')::text AS project_name
 FROM tasks t
 LEFT JOIN projects p ON p.id = t.project_id
-WHERE t.id::text = $1::text
+WHERE t.id = $1
 `
 
 type TaskRow struct {
@@ -232,7 +232,7 @@ func (q *Queries) Task(ctx context.Context, id string) (TaskRow, error) {
 const updateTask = `-- name: UpdateTask :one
 UPDATE tasks
 SET title = $1, status = $2, due = $3, project_id = NULLIF($4::text, '')::uuid, updated_at = now()
-WHERE id::text = $5::text
+WHERE id = $5
 RETURNING id
 `
 
