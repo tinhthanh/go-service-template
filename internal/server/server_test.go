@@ -80,6 +80,14 @@ func TestServer_ARequestTheContractRefusesIsInvalidOnItsField(t *testing.T) {
 	wrong := c.Do(http.MethodPost, "/projects", `{"name": 7, "description": "x"}`, nil)
 	assert.Contains(t, string(wrong.Body), `"field":"name"`, "a value of the wrong type")
 
+	// A body with an anyOf in it (a task's due: a day, or null) is refused in other words.
+	extraTask := c.Do(http.MethodPost, "/tasks", `{"title": "X", "owner": "me"}`, nil)
+	assert.Equal(t, http.StatusBadRequest, extraTask.Status)
+	assert.Contains(t, string(extraTask.Body), `"field":"owner"`)
+
+	noTitle := c.Do(http.MethodPost, "/tasks", `{}`, nil)
+	assert.JSONEq(t, `{"error": "This is needed.", "code": "invalid", "field": "title"}`, string(noTitle.Body))
+
 	day := c.Do(http.MethodPost, "/tasks", `{"title": "X", "due": "tomorrow"}`, nil)
 	assert.Equal(t, http.StatusBadRequest, day.Status)
 	assert.Contains(t, string(day.Body), `"field":"due"`, "a value none of anyOf's schemas takes (a day, or null)")

@@ -71,7 +71,9 @@ tools/                  stubgen (the 501 stubs), hooks (Claude Code's)
 - A refusal of a value the rules don't allow is `problem.Invalid(field, words)` (422, as the client's
   mock answers); a request the contract refuses is 400 before the handler runs. The client reads
   `code` and `field`, not the status, so where the mock answers 422 for a shape the contract
-  already refuses (a day that isn't one), 400 is right.
+  already refuses (a day that isn't one), 400 is right. A test still pins the status it gets.
+- A day with no time (a task's due) is compared with today's date in UTC (ADR 0013): the
+  contract sends no time zone.
 - A PATCH field the contract lets be `null` ("takes it off") is generated as a pointer, nil for null
   and for left out alike: `httpx.SentNull(ctx, "due")` tells them apart.
 
@@ -88,8 +90,9 @@ person typed are matched with `strpos`, never `LIKE`, so they are never a patter
 
 - **A package per feature.** A feature imports `internal/api` and `internal/platform`, never another
   feature: it declares the small interface it needs, and `internal/server` passes the other in.
-  `internal/platform` knows no feature. `internal/archtest` fails the build otherwise. In SQL a
-  feature may read another's table to show it (a task's project name, by JOIN) but never writes it.
+  `internal/platform` knows no feature. `internal/archtest` fails the build otherwise, for tests too.
+  In SQL a feature may read another's table, to show it (a task's project name, by JOIN) or to check
+  it (the project is in the task's workspace), but never writes it.
 - **Errors** are wrapped with `%w` and context (`fmt.Errorf("projects: store: %w", err)`), compared
   with `errors.Is`/`errors.As`, handled once (returned or logged, never both).
 - **Context** is the first argument of anything that does I/O, and is never kept in a struct.

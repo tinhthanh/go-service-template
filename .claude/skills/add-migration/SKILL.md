@@ -16,5 +16,7 @@ start (`MIGRATE_ON_START`) and in every store test (`dbtest`), and read by sqlc 
    what a delete does (`ON DELETE CASCADE` for a workspace's records).
 3. **Down**: undoes exactly that, in the reverse order.
 4. `make generate`: sqlc reads the new schema; a query it breaks fails now, by file and line.
+   Every feature's `db/models.go` gains the new table's model, since each reads the whole schema:
+   that is expected in the diff.
 5. **Prove it on Postgres**: a store test (`integration`) that relies on the new constraint, and
    `make verify`, which applies every migration to an empty database.

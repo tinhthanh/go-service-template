@@ -17,7 +17,10 @@ half-wired feature; nothing refuses a missing test, so the tests below are the c
    record of a workspace has `workspace_id TEXT NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE`;
    a name unique in its workspace is a unique index on `(workspace_id, lower(name))`.
 3. **Queries**: `internal/<feature>/queries.sql`, and a block for it in `sqlc.yaml` (copy projects',
-   change both paths). `SELECT *` and `RETURNING *` give one model; a list is one static query with
+   change both paths). `SELECT *` and `RETURNING *` give one model; a record is found by
+   `WHERE id = @id`, its id a UUID, and the store answers an id that isn't one with
+   `problem.ErrNotFound` before any query (`uuid.Validate`), so the primary key's index serves it;
+   a list is one static query with
    optional filters (`@q::text = '' OR …`), `CASE` per sort column, and a `Count…` with the same
    filters. Words typed are matched with `strpos`, never `LIKE`. Then `make generate`.
 4. **Service** (`service.go`): the package comment says what it is and its rules. Its `Store`
@@ -35,6 +38,10 @@ half-wired feature; nothing refuses a missing test, so the tests below are the c
    field in `Features`, the PG store in `Wire` (`wire.go`), and the memory store and handler in
    `servertest.New` (with fixtures a test can name, as `servertest.Vault`).
 8. **Tests**:
+   - A record of another feature a test needs (a project for a task) is made through the server
+     (`s.Do(http.MethodPost, "/projects", …)`) or with SQL in a store test: `internal/archtest`
+     refuses a feature's tests importing another feature, as it does its code.
+   - `internal/server/server_test.go` lists operations that still answer 501: take yours out of it.
    - `handler_test.go` (package `<feature>_test`): `servertest.New(t)`, `s.As(servertest.Member)`,
      `s.Do(…)`: one test per behaviour the client sees, named as a sentence (each answer is checked
      against the contract for you); the roles, another workspace's record, each refusal on its field.
