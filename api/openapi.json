@@ -3,12 +3,45 @@
   "info": {
     "title": "App Shell API",
     "version": "1.0.0",
-    "description": "What the app's HTTP client (src/lib/api.ts) asks of a server, and what the mock (src/lib/mock.ts) answers. Each operationId is a method of Client. `pnpm check:contract` holds the client and the mock to this file; `pnpm stub` serves it from the mock. Replace the projects with your resources, here first. Every write (POST, PATCH, DELETE) carries X-Requested-With: XMLHttpRequest; a server using the session cookie refuses a write without it (cross-site request forgery)."
+    "description": "What the app's HTTP client (src/lib/api.ts) asks of a server, and what the mock (src/lib/mock.ts) answers. Each operationId is a method of Client. `pnpm check:contract` holds the client and the mock to this file; `pnpm stub` serves it from the mock. Replace the projects with your resources, here first. Every write (POST, PATCH, DELETE) carries X-Requested-With: XMLHttpRequest; a server using the session cookie refuses a write without it (cross-site request forgery). Each operation's x-permission says what a caller needs: public (anyone, signed in or not; a refresh is named by its own cookie), signed-in, or an action of x-roles, which says the roles that may take each action. The client hides what isn't someone's to do (lib/permissions.ts, held equal to x-roles by pnpm check:contract); a server refuses it, 401 for nobody and 403 for a role that may not, whatever the client hid."
+  },
+  "x-roles": {
+    "project.create": [
+      "owner",
+      "member"
+    ],
+    "project.edit": [
+      "owner",
+      "member"
+    ],
+    "project.delete": [
+      "owner"
+    ],
+    "task.create": [
+      "owner",
+      "member"
+    ],
+    "task.edit": [
+      "owner",
+      "member"
+    ],
+    "task.delete": [
+      "owner"
+    ],
+    "file.upload": [
+      "owner",
+      "member"
+    ],
+    "workspace.create": [
+      "owner",
+      "member"
+    ]
   },
   "paths": {
     "/projects": {
       "get": {
         "operationId": "projects",
+        "x-permission": "signed-in",
         "summary": "A page of the projects that match, filtered and sorted by the server",
         "responses": {
           "200": {
@@ -87,7 +120,7 @@
             "name": "sort",
             "in": "query",
             "required": false,
-            "description": "name:asc, updated:desc\u2026",
+            "description": "name:asc, updated:desc…",
             "schema": {
               "type": "string"
             }
@@ -115,6 +148,7 @@
       },
       "post": {
         "operationId": "createProject",
+        "x-permission": "project.create",
         "summary": "Make a project",
         "responses": {
           "200": {
@@ -169,6 +203,7 @@
     "/projects/{id}": {
       "get": {
         "operationId": "project",
+        "x-permission": "signed-in",
         "summary": "One project",
         "responses": {
           "200": {
@@ -205,6 +240,7 @@
       },
       "patch": {
         "operationId": "updateProject",
+        "x-permission": "project.edit",
         "summary": "Change a project",
         "responses": {
           "200": {
@@ -269,6 +305,7 @@
       },
       "delete": {
         "operationId": "deleteProject",
+        "x-permission": "project.delete",
         "summary": "Delete a project",
         "responses": {
           "204": {
@@ -300,6 +337,7 @@
     "/project-tags": {
       "get": {
         "operationId": "projectTags",
+        "x-permission": "signed-in",
         "summary": "Every tag in use in a workspace (all when left out)",
         "responses": {
           "200": {
@@ -342,6 +380,7 @@
     "/workspaces": {
       "get": {
         "operationId": "workspaces",
+        "x-permission": "signed-in",
         "summary": "The workspaces the person belongs to",
         "responses": {
           "200": {
@@ -371,6 +410,7 @@
       },
       "post": {
         "operationId": "createWorkspace",
+        "x-permission": "workspace.create",
         "summary": "Make a workspace",
         "responses": {
           "200": {
@@ -418,6 +458,7 @@
     "/search": {
       "get": {
         "operationId": "search",
+        "x-permission": "signed-in",
         "summary": "The records that match a few letters, best first",
         "responses": {
           "200": {
@@ -459,6 +500,7 @@
     "/session": {
       "get": {
         "operationId": "me",
+        "x-permission": "signed-in",
         "summary": "Who is signed in (401 when nobody is)",
         "responses": {
           "200": {
@@ -485,6 +527,7 @@
       },
       "post": {
         "operationId": "signIn",
+        "x-permission": "public",
         "summary": "Sign in; the server sets the session cookie (httpOnly)",
         "responses": {
           "200": {
@@ -534,6 +577,7 @@
       },
       "delete": {
         "operationId": "signOut",
+        "x-permission": "public",
         "summary": "Sign out",
         "responses": {
           "204": {
@@ -555,6 +599,7 @@
     "/session/refresh": {
       "post": {
         "operationId": "refreshSession",
+        "x-permission": "public",
         "summary": "A longer session, from the refresh cookie",
         "responses": {
           "200": {
@@ -583,6 +628,7 @@
     "/tasks": {
       "get": {
         "operationId": "tasks",
+        "x-permission": "signed-in",
         "summary": "A page of the tasks that match, filtered and sorted by the server",
         "responses": {
           "200": {
@@ -687,7 +733,7 @@
             "name": "sort",
             "in": "query",
             "required": false,
-            "description": "title:asc, due:asc, updated:desc\u2026",
+            "description": "title:asc, due:asc, updated:desc…",
             "schema": {
               "type": "string"
             }
@@ -715,6 +761,7 @@
       },
       "post": {
         "operationId": "createTask",
+        "x-permission": "task.create",
         "summary": "Make a task",
         "responses": {
           "200": {
@@ -801,6 +848,7 @@
     "/tasks/{id}": {
       "get": {
         "operationId": "task",
+        "x-permission": "signed-in",
         "summary": "One task",
         "responses": {
           "200": {
@@ -837,6 +885,7 @@
       },
       "patch": {
         "operationId": "updateTask",
+        "x-permission": "task.edit",
         "summary": "Change a task; null takes a due day, a project or a file off",
         "responses": {
           "200": {
@@ -928,6 +977,7 @@
       },
       "delete": {
         "operationId": "deleteTask",
+        "x-permission": "task.delete",
         "summary": "Delete a task",
         "responses": {
           "204": {
@@ -959,6 +1009,7 @@
     "/files": {
       "post": {
         "operationId": "uploadFile",
+        "x-permission": "file.upload",
         "summary": "Keep a file, sent as it is; a task names it by the id answered",
         "responses": {
           "200": {
@@ -1185,7 +1236,7 @@
           },
           "code": {
             "type": "string",
-            "description": "For the app: invalid, forbidden, not_found, unauthorized, unavailable\u2026"
+            "description": "For the app: invalid, forbidden, not_found, unauthorized, unavailable…"
           },
           "field": {
             "type": "string",

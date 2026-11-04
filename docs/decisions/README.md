@@ -16,3 +16,4 @@ follows, and when to revisit it. A new one takes the next number; one replaced s
 | [0009](0009-sessions-kept-on-the-server.md) | Sessions are kept on the server, a cookie holds their token |
 | [0010](0010-a-database-per-test.md) | A real Postgres for stores, a database per test, the rest in memory |
 | [0011](0011-what-isnt-yours-isnt-there.md) | What isn't yours isn't there: another workspace's records are 404 |
+| [0012](0012-the-contract-says-who-may.md) | The contract says who may: x-permission is checked before every operation |

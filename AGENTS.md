@@ -61,10 +61,12 @@ tools/                  stubgen (the 501 stubs), hooks (Claude Code's)
 
 - The session is a cookie (httpOnly, Secure, SameSite=Lax) holding a random token; the database
   keeps only its hash, so sign-out ends it. `platform/auth` puts the caller on the context.
-- A feature's service, not its handler, asks who is calling: `auth.Required(ctx)`, or `auth.Allowed(ctx, "project.create")`
-  for an action of the role table (`platform/auth/permissions.go`, the same as the client's
-  `lib/permissions.ts`: a new action goes in both). A record of a workspace the caller isn't in is
-  `problem.ErrNotFound`, as if it weren't there (`p.Belongs(workspace)`).
+- What an operation needs is the contract's: its `x-permission` (`public`, `signed-in`, or an action)
+  and `x-roles` (each action's roles), checked before any handler or stub runs (`auth.Rules`), so a
+  feature can't forget it and nothing in Go names a role. A new action is the client's change
+  (contract and its `lib/permissions.ts`), then `make contract-sync`. A feature's service asks only
+  who is calling (`auth.Required(ctx)`) and whose the record is: one of a workspace the caller isn't
+  in is `problem.ErrNotFound`, as if it weren't there (`p.Belongs(workspace)`).
 - Every write carries `X-Requested-With: XMLHttpRequest` (CSRF); the client sends it.
 - A refusal of a value the rules don't allow is `problem.Invalid(field, words)` (422, as the client's
   mock answers); a request the contract refuses is 400 before the handler runs. The client reads

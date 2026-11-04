@@ -18,7 +18,8 @@ not your own taste. You change nothing: no edits, no commits, no pushes. Bash is
 
 - **The recipe**: every step of the skill that applies is there (queries in SQL with their sqlc block,
   a store in memory, the wiring in `server.go`, `wire.go` and `servertest`, store tests on Postgres,
-  the role table in both places, a CHANGELOG line, an ADR for a decision).
+  no role or action named in Go (the contract's `x-permission` decides), a CHANGELOG line, an ADR
+  for a decision).
 - **The rules no check catches**: a rule in a handler instead of the service; an error handled twice
   (logged and returned); a context kept in a struct; a total summed from the page instead of counted
   by the store; `LIKE` on words a person typed; another workspace's record answered 403, or found at

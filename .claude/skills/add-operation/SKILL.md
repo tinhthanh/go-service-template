@@ -14,7 +14,9 @@ the stub's place. Two features defining the same method fail to compile.
    `<OperationId>RequestObject` has its path parameters, `Params` (query) and `Body`; its answers are
    `<OperationId>200JSONResponse` (or `204Response`). If the contract changed, `make contract-sync
    FROM=<client>` first, and the hook refuses an edit to `api/openapi.json` or `*.gen.go`.
-2. **The rule in the service** (`internal/<feature>/service.go`): who may (`auth.Allowed`), whose
+2. **The rule in the service** (`internal/<feature>/service.go`): who may is the contract's
+   `x-permission`, already checked before your method runs (a viewer gets 403 even from the stub);
+   the service asks who is calling (`auth.Required`), whose
    (`p.Belongs`), what is refused (`problem.Invalid(field, words)`, `problem.ErrNotFound`). The
    request's shape is already checked against the contract before your code runs: don't re-check it.
 3. **A query** if it needs one: in the feature's `queries.sql`, then `make generate` (the after-edit

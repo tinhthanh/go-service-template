@@ -55,7 +55,7 @@ func (s *Service) List(ctx context.Context) ([]Workspace, error) {
 // Create makes a workspace the caller belongs to. A name is needed, and
 // one of the caller's own workspaces may not have it already.
 func (s *Service) Create(ctx context.Context, name string) (Workspace, error) {
-	p, err := auth.Allowed(ctx, "workspace.create")
+	p, err := auth.Required(ctx)
 	if err != nil {
 		return Workspace{}, err
 	}

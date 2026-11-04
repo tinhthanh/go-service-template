@@ -14,7 +14,7 @@ description: Measure how well this template guides an agent that has never seen 
    - `make verify` green; `make gates` with PR.md's title and body green;
    - the operations built answer as the client's mock does (refusals, defaults, roles, scope);
    - `add-feature`'s steps all there (queries in SQL, store in memory, servertest, store tests on
-     Postgres, the role table in both places, a CHANGELOG line);
+     Postgres, no role or action named in Go, a CHANGELOG line);
    - no rule bent: no `//nolint` without a reason, no check loosened, no `t.Skip`, no edit to
      generated code or the contract;
    - the `reviewer` agent (`.claude/agents/reviewer.md`) on its diff.

@@ -21,9 +21,9 @@ half-wired feature; nothing refuses a missing test, so the tests below are the c
    optional filters (`@q::text = '' OR …`), `CASE` per sort column, and a `Count…` with the same
    filters. Words typed are matched with `strpos`, never `LIKE`. Then `make generate`.
 4. **Service** (`service.go`): the package comment says what it is and its rules. Its `Store`
-   interface is declared here, small. Each method asks who is calling first (`auth.Required`, or
-   `auth.Allowed(ctx, "<feature>.<verb>")` with the action in `platform/auth/permissions.go` and the
-   client's `lib/permissions.ts`), scopes to `p.Belongs(workspace)` (another's is `problem.ErrNotFound`),
+   interface is declared here, small. Each method asks who is calling (`auth.Required`; what their
+   role may do is the contract's `x-permission`, checked before the method runs, so a new action
+   is the client's to add to `x-roles` first), scopes to `p.Belongs(workspace)` (another's is `problem.ErrNotFound`),
    and refuses a value with `problem.Invalid(field, "words for a person")`. Errors wrapped with
    `fmt.Errorf("<feature>: <step>: %w", err)`.
 5. **Store** (`store.go`): `PGStore` over the generated queries; `pgx.ErrNoRows` is `problem.ErrNotFound`.

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -15,29 +16,78 @@ import (
 	"github.com/tinhthanh/go-service-template/internal/platform/problem"
 )
 
-func TestCan_EachRoleMayDoWhatTheClientsTableSays(t *testing.T) {
-	t.Parallel()
+// rules reads a contract of three operations: one public, one for the
+// signed-in, one for an action only an owner takes.
+func rules(t *testing.T, extra string) (*auth.Rules, error) {
+	t.Helper()
 
-	owner, member, viewer := &auth.Principal{Role: "owner"}, &auth.Principal{Role: "member"}, &auth.Principal{Role: "viewer"}
+	spec, err := openapi3.NewLoader().LoadFromData([]byte(`{"openapi": "3.1.0", "info": {"title": "x", "version": "1"},
+	  "x-roles": {"project.delete": ["owner"]` + extra + `},
+	  "paths": {
+	    "/session": {"post": {"operationId": "signIn", "x-permission": "public", "responses": {"204": {"description": "x"}}}},
+	    "/projects": {"get": {"operationId": "projects", "x-permission": "signed-in", "responses": {"204": {"description": "x"}}}},
+	    "/projects/{id}": {"delete": {"operationId": "deleteProject", "x-permission": "project.delete", "responses": {"204": {"description": "x"}}}}
+	  }}`))
+	require.NoError(t, err)
 
-	assert.True(t, auth.Can(owner, "project.delete"))
-	assert.False(t, auth.Can(member, "project.delete"), "only an owner deletes")
-	assert.True(t, auth.Can(member, "project.create"))
-	assert.False(t, auth.Can(viewer, "project.create"), "a viewer only reads")
-	assert.False(t, auth.Can(owner, "project.launch"), "an action the table doesn't name is nobody's")
-	assert.False(t, auth.Can(nil, "project.create"), "nobody may take none")
+	return auth.RulesOf(spec)
 }
 
-func TestAllowed_NobodyIsUnauthorizedAndTheWrongRoleForbidden(t *testing.T) {
+func TestRules_AreReadFromTheContract(t *testing.T) {
 	t.Parallel()
 
-	_, err := auth.Allowed(t.Context(), "project.create")
+	r, err := rules(t, "")
+	require.NoError(t, err)
+
+	assert.Equal(t, "project.delete", r.Need("DeleteProject"), "the generated name, in any case")
+	assert.True(t, r.Can(&auth.Principal{Role: "owner"}, "project.delete"))
+	assert.False(t, r.Can(&auth.Principal{Role: "member"}, "project.delete"))
+	assert.False(t, r.Can(&auth.Principal{Role: "owner"}, "project.launch"), "an action x-roles doesn't name is nobody's")
+	assert.False(t, r.Can(nil, "project.delete"), "nobody may take none")
+}
+
+func TestRules_CheckIsTheOperationsXPermissionForTheCaller(t *testing.T) {
+	t.Parallel()
+
+	r, err := rules(t, "")
+	require.NoError(t, err)
+
+	owner := auth.With(t.Context(), &auth.Principal{Role: "owner"})
+	viewer := auth.With(t.Context(), &auth.Principal{Role: "viewer"})
+
+	require.NoError(t, r.Check(t.Context(), "SignIn"), "public: anyone")
+	require.ErrorIs(t, r.Check(t.Context(), "Projects"), problem.ErrUnauthorized)
+	require.NoError(t, r.Check(viewer, "Projects"), "signed-in: any role")
+	require.ErrorIs(t, r.Check(viewer, "DeleteProject"), problem.ErrForbidden)
+	require.NoError(t, r.Check(owner, "DeleteProject"))
+}
+
+func TestRulesOf_AContractThatDoesntSayIsRefusedAtStart(t *testing.T) {
+	t.Parallel()
+
+	spec, err := openapi3.NewLoader().LoadFromData([]byte(`{"openapi": "3.1.0", "info": {"title": "x", "version": "1"},
+	  "paths": {"/x": {"get": {"operationId": "x", "responses": {"204": {"description": "x"}}}}}}`))
+	require.NoError(t, err)
+
+	_, err = auth.RulesOf(spec)
+	require.ErrorIs(t, err, auth.ErrRules)
+	require.ErrorContains(t, err, "no x-permission")
+
+	spec, err = openapi3.NewLoader().LoadFromData([]byte(`{"openapi": "3.1.0", "info": {"title": "x", "version": "1"}, "x-roles": {},
+	  "paths": {"/x": {"get": {"operationId": "x", "x-permission": "x.launch", "responses": {"204": {"description": "x"}}}}}}`))
+	require.NoError(t, err)
+
+	_, err = auth.RulesOf(spec)
+	require.ErrorContains(t, err, "not an action of x-roles")
+}
+
+func TestRequired_NobodyIsUnauthorized(t *testing.T) {
+	t.Parallel()
+
+	_, err := auth.Required(t.Context())
 	require.ErrorIs(t, err, problem.ErrUnauthorized)
 
-	_, err = auth.Allowed(auth.With(t.Context(), &auth.Principal{Role: "viewer"}), "project.create")
-	require.ErrorIs(t, err, problem.ErrForbidden)
-
-	p, err := auth.Allowed(auth.With(t.Context(), &auth.Principal{ID: "u-1", Role: "member"}), "project.create")
+	p, err := auth.Required(auth.With(t.Context(), &auth.Principal{ID: "u-1"}))
 	require.NoError(t, err)
 	assert.Equal(t, "u-1", p.ID)
 }
