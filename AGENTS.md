@@ -110,6 +110,14 @@ Tests are named as what the caller gets (`TestServer_ARequestTheContractRefusesI
 use testify's `require` for what must hold before going on and `assert` for the rest, and never
 wait on time: `s.Clock().Advance(d)` moves the server's clock (sessions take `now` as a function).
 
+## Recipes
+
+Each change has a skill in `.claude/skills/` that is its checklist: load it before you start, and
+follow it step by step. `add-feature` (a resource no feature serves), `add-operation` (one more
+operation of a feature), `add-migration`, `open-pr` (CI's gates, run here first), `fix-ci`, and
+`trial` (measure the template on a fresh agent). The `reviewer` agent
+(`.claude/agents/reviewer.md`) reads a diff against these rules before a pull request.
+
 ## Done means
 
 1. `make check` is green; before a pull request, `make verify` (Docker running).
@@ -117,4 +125,8 @@ wait on time: `s.Clock().Advance(d)` moves the server's clock (sessions take `no
 3. A choice the next person would ask about has an ADR in `docs/decisions/`.
 4. A change a client would notice has a line under `## Unreleased` in `CHANGELOG.md`.
 5. The work is on a branch, as a pull request against `main`, with a lowercase conventional subject
-   (`feat: …`, `fix: …`, `docs: …`, `chore: …`) that says what the client gets.
+   (`feat: …`, `fix: …`, `docs: …`, `chore: …`) that says what the client gets, and its body from
+   the template. CI's gates (`make gates`) refuse a behaviour change with no test changed (or a
+   `no-test: <why>` line), a client-visible change with no CHANGELOG line, a `feat:` without
+   Assumptions and Not done, an added `t.Skip` or bare `//nolint`, and a change to the checks
+   themselves without the `guardrail-change` label.

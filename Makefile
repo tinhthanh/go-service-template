@@ -69,6 +69,12 @@ seed: ## The acme people and workspace, for signing in on a laptop
 	go run ./tools/seed
 .PHONY: seed
 
+gates: ## The pull request's gates, as CI runs them: PR_TITLE, PR_BODY (and PR_LABELS) in env, against origin/main
+	git fetch -q origin main
+	go run ./tools/gates evidence
+	go run ./tools/gates guardrails
+.PHONY: gates
+
 contract-sync: ## Copy the client's contract in: make contract-sync FROM=<the client's repository>
 	@test -n "$(FROM)" || (echo "contract-sync: make contract-sync FROM=<the client's repository, with api/openapi.json>"; exit 1)
 	cp "$(FROM)/api/openapi.json" api/openapi.json
