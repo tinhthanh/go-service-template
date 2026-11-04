@@ -65,3 +65,13 @@ sql:
         sql_package: pgx/v5
         emit_empty_slices: true
         output_files_suffix: .gen
+  - engine: postgresql
+    schema: migrations
+    queries: internal/files/queries.sql
+    gen:
+      go:
+        package: db
+        out: internal/files/db
+        sql_package: pgx/v5
+        emit_empty_slices: true
+        output_files_suffix: .gen

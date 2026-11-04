@@ -4,6 +4,11 @@ What a client of the service would notice, newest first.
 
 ## Unreleased
 
+- `POST /api/files` keeps the file the client sends (its name from `X-File-Name`, up to 5 MB;
+  more is 422 on `attachment`), and a task names it by the id answered: its `attachment` shows it,
+  `null` takes it off, and a file someone else sent is 422 on `attachment`. Every operation of the
+  client's contract is now built.
+- A request's body past 8 MB is refused with 413 `too_large`.
 - `GET /api/search?q=` finds the caller's projects and tasks, each kind ranked on its own and at most
   five of each, as the client's palette ranks them: the name itself, one that starts with the
   letters, one with a word that does, one that has them, then a match in the rest. A project's

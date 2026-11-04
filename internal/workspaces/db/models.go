@@ -10,6 +10,16 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type File struct {
+	ID        string
+	OwnerID   string
+	Name      string
+	Type      string
+	Size      int32
+	Data      []byte
+	CreatedAt time.Time
+}
+
 type Membership struct {
 	UserID      string
 	WorkspaceID string
@@ -37,14 +47,15 @@ type Session struct {
 }
 
 type Task struct {
-	ID          string
-	WorkspaceID string
-	Title       string
-	Status      string
-	Due         pgtype.Date
-	ProjectID   *string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID           string
+	WorkspaceID  string
+	Title        string
+	Status       string
+	Due          pgtype.Date
+	ProjectID    *string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	AttachmentID *string
 }
 
 type User struct {

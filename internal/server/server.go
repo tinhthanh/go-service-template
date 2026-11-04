@@ -17,6 +17,7 @@ import (
 	nethttpmiddleware "github.com/oapi-codegen/nethttp-middleware"
 
 	"github.com/tinhthanh/go-service-template/internal/api"
+	"github.com/tinhthanh/go-service-template/internal/files"
 	"github.com/tinhthanh/go-service-template/internal/platform/auth"
 	"github.com/tinhthanh/go-service-template/internal/platform/config"
 	"github.com/tinhthanh/go-service-template/internal/platform/httpx"
@@ -38,6 +39,7 @@ type operations struct {
 	*projectOps
 	*taskOps
 	*searchOps
+	*fileOps
 	stubs
 }
 
@@ -48,6 +50,7 @@ type (
 	projectOps   = projects.Handler
 	taskOps      = tasks.Handler
 	searchOps    = search.Handler
+	fileOps      = files.Handler
 )
 
 type stubs struct{ api.Unimplemented }
@@ -62,6 +65,7 @@ type Features struct {
 	Projects   *projects.Handler
 	Tasks      *tasks.Handler
 	Search     *search.Handler
+	Files      *files.Handler
 }
 
 // New is the service's handler.
@@ -74,7 +78,7 @@ func New(cfg *config.Config, log *slog.Logger, f Features) (http.Handler, error)
 	// The router matches paths without the prefix; the validator does too.
 	spec.Servers = nil
 
-	ops := &operations{sessionOps: f.Session, workspaceOps: f.Workspaces, projectOps: f.Projects, taskOps: f.Tasks, searchOps: f.Search}
+	ops := &operations{sessionOps: f.Session, workspaceOps: f.Workspaces, projectOps: f.Projects, taskOps: f.Tasks, searchOps: f.Search, fileOps: f.Files}
 
 	// What each operation needs, and who may: the contract's x-permission and x-roles.
 	rules, err := auth.RulesOf(spec)
@@ -105,7 +109,7 @@ func New(cfg *config.Config, log *slog.Logger, f Features) (http.Handler, error)
 	mux := http.NewServeMux()
 	// A write needs the app's header (CSRF), then the caller is found, then the fields a change sends as
 	// null are noted (httpx.Nulls), then the request is held to the contract.
-	guarded := httpx.Chain(validate(contract), auth.CSRF(log), auth.Middleware(f.Auth, log), httpx.Nulls())
+	guarded := httpx.Chain(validate(contract), httpx.MaxBody(maxBody), auth.CSRF(log), auth.Middleware(f.Auth, log), httpx.Nulls())
 	mux.Handle(cfg.APIPrefix+"/", http.StripPrefix(cfg.APIPrefix, guarded))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
 
@@ -117,6 +121,9 @@ func New(cfg *config.Config, log *slog.Logger, f Features) (http.Handler, error)
 		httpx.CORS(cfg.CORSOrigins),
 	), nil
 }
+
+// maxBody is the most a request's body may hold: a file's 5 MB (internal/files) and room besides.
+const maxBody = 8 << 20
 
 // permitted checks an operation's x-permission before its handler, or its
 // stub, runs: a role refused is 403 whether or not the operation is built.
@@ -142,6 +149,13 @@ var fieldInReason = regexp.MustCompile(`(?:missing propert(?:y|ies)|additional p
 // invalid is a request the contract refuses, on the field it names when it names one.
 func invalid(err error) error {
 	reqErr, ok := errors.AsType[*openapi3filter.RequestError](err)
+	if ok {
+		// A body cut short by httpx.MaxBody is too large, not malformed; RequestError keeps it in Err.
+		if _, big := errors.AsType[*http.MaxBytesError](reqErr.Err); big {
+			return problem.ErrTooLarge
+		}
+	}
+
 	if !ok {
 		if errors.Is(err, problem.ErrInvalid) {
 			return err

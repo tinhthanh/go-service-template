@@ -43,7 +43,6 @@ half-wired feature; nothing refuses a missing test, so the tests below are the c
    - A record of another feature a test needs (a project for a task) is made through the server
      (`s.Do(http.MethodPost, "/projects", …)`) or with SQL in a store test: `internal/archtest`
      refuses a feature's tests importing another feature, as it does its code.
-   - `internal/server/server_test.go` lists operations that still answer 501: take yours out of it.
    - `handler_test.go` (package `<feature>_test`): `servertest.New(t)`, `s.As(servertest.Member)`,
      `s.Do(…)`: one test per behaviour the client sees, named as a sentence (each answer is checked
      against the contract for you); the roles, another workspace's record, each refusal on its field.

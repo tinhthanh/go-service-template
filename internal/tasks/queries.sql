@@ -1,14 +1,17 @@
--- A task is read with its project's name (projects is read to show it,
--- never written). The filters a list takes, the same in ListTasks and
+-- A task is read with its project's name and its file's (projects and files
+-- are read to show them and to check them, never written). The filters a list takes, the same in ListTasks and
 -- CountTasks: the person's workspaces (or the one asked), words in the
 -- title or the project's name (strpos: what was typed is never a pattern),
 -- a status, the done ones left out, and a project.
 
 -- name: ListTasks :many
 SELECT t.id, t.workspace_id, t.title, t.status, t.due, t.updated_at,
-       coalesce(p.id::text, '')::text AS project_id, coalesce(p.name, '')::text AS project_name
+       coalesce(p.id::text, '')::text AS project_id, coalesce(p.name, '')::text AS project_name,
+       coalesce(f.id::text, '')::text AS attachment_id, coalesce(f.name, '')::text AS attachment_name,
+       coalesce(f.type, '')::text AS attachment_type, coalesce(f.size, 0)::int AS attachment_size
 FROM tasks t
 LEFT JOIN projects p ON p.id = t.project_id
+LEFT JOIN files f ON f.id = t.attachment_id
 WHERE t.workspace_id = ANY (@workspaces::text[])
   AND (@q::text = '' OR strpos(lower(t.title || ' ' || coalesce(p.name, '')), lower(@q)) > 0)
   AND (@status::text = '' OR t.status = @status)
@@ -38,22 +41,30 @@ WHERE t.workspace_id = ANY (@workspaces::text[])
 
 -- name: Task :one
 SELECT t.id, t.workspace_id, t.title, t.status, t.due, t.updated_at,
-       coalesce(p.id::text, '')::text AS project_id, coalesce(p.name, '')::text AS project_name
+       coalesce(p.id::text, '')::text AS project_id, coalesce(p.name, '')::text AS project_name,
+       coalesce(f.id::text, '')::text AS attachment_id, coalesce(f.name, '')::text AS attachment_name,
+       coalesce(f.type, '')::text AS attachment_type, coalesce(f.size, 0)::int AS attachment_size
 FROM tasks t
 LEFT JOIN projects p ON p.id = t.project_id
+LEFT JOIN files f ON f.id = t.attachment_id
 WHERE t.id = @id;
 
 -- name: ProjectName :one
 SELECT name FROM projects WHERE id = @id AND workspace_id = @workspace_id;
 
+-- name: AttachmentOf :one
+-- The file, when its sender is the one asking: a task names only its maker's own.
+SELECT id, name, type, size FROM files WHERE id = @id AND owner_id = @owner_id;
+
 -- name: CreateTask :one
-INSERT INTO tasks (workspace_id, title, status, due, project_id)
-VALUES (@workspace_id, @title, @status, sqlc.narg(due), NULLIF(@project_id::text, '')::uuid)
+INSERT INTO tasks (workspace_id, title, status, due, project_id, attachment_id)
+VALUES (@workspace_id, @title, @status, sqlc.narg(due), NULLIF(@project_id::text, '')::uuid, NULLIF(@attachment_id::text, '')::uuid)
 RETURNING id;
 
 -- name: UpdateTask :one
 UPDATE tasks
-SET title = @title, status = @status, due = sqlc.narg(due), project_id = NULLIF(@project_id::text, '')::uuid, updated_at = now()
+SET title = @title, status = @status, due = sqlc.narg(due), project_id = NULLIF(@project_id::text, '')::uuid,
+    attachment_id = NULLIF(@attachment_id::text, '')::uuid, updated_at = now()
 WHERE id = @id
 RETURNING id;
 

@@ -303,3 +303,50 @@ func TestPGStore_AnIDThatIsntOneIsNoTaskAndNoProject(t *testing.T) {
 	assert.Empty(t, titles)
 	assert.Zero(t, counts.Total)
 }
+
+// file is a file Max sent (another of Kim's, when kim), in the test's database.
+func file(t *testing.T, pool *pgxpool.Pool, email string) (string, string) {
+	t.Helper()
+
+	var owner, id string
+	require.NoError(t, pool.QueryRow(t.Context(),
+		`INSERT INTO users (name, email, password_hash, role) VALUES ($1, $1, 'x', 'member') RETURNING id`, email).Scan(&owner))
+	require.NoError(t, pool.QueryRow(t.Context(),
+		`INSERT INTO files (owner_id, name, type, size, data) VALUES ($1, 'plan.pdf', 'application/pdf', 4, 'plan') RETURNING id`, owner).Scan(&id))
+
+	return owner, id
+}
+
+func TestPGStore_ATaskIsReadWithItsFileAndNamesOnlyItsMakersOwn(t *testing.T) {
+	t.Parallel()
+
+	pool, s, ids := acmeDB(t)
+	maxID, plan := file(t, pool, "max@acme.test")
+	kim, _ := file(t, pool, "kim@acme.test")
+
+	a, err := s.AttachmentOf(t.Context(), plan, maxID)
+	require.NoError(t, err)
+	assert.Equal(t, tasks.Attachment{ID: plan, Name: "plan.pdf", Type: "application/pdf", Size: 4}, a)
+
+	_, err = s.AttachmentOf(t.Context(), plan, kim)
+	require.ErrorIs(t, err, problem.ErrNotFound, "another's file is not theirs to name")
+
+	_, err = s.AttachmentOf(t.Context(), "not-a-uuid", maxID)
+	require.ErrorIs(t, err, problem.ErrNotFound)
+
+	tk, err := s.Get(t.Context(), ids["Retry payments"])
+	require.NoError(t, err)
+
+	tk.Attachment = &a
+	saved, err := s.Update(t.Context(), &tk)
+	require.NoError(t, err)
+	require.NotNil(t, saved.Attachment)
+	assert.Equal(t, a, *saved.Attachment)
+
+	_, err = pool.Exec(t.Context(), `DELETE FROM files WHERE id = $1`, plan)
+	require.NoError(t, err)
+
+	gone, err := s.Get(t.Context(), ids["Retry payments"])
+	require.NoError(t, err, "deleting the file leaves the task")
+	assert.Nil(t, gone.Attachment)
+}

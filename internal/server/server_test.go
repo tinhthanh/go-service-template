@@ -2,7 +2,6 @@ package server_test
 
 import (
 	"encoding/json"
-	"maps"
 	"net/http"
 	"testing"
 
@@ -31,29 +30,6 @@ func code(t *testing.T, a contracttest.Answer) string {
 	require.NoError(t, json.Unmarshal(a.Body, &body), string(a.Body))
 
 	return body.Code
-}
-
-func TestServer_AnOperationNotBuiltSaysSoInTheContractsWords(t *testing.T) {
-	t.Parallel()
-
-	s := servertest.New(t)
-	owner := s.As(servertest.Owner)
-
-	for _, call := range []struct {
-		method, path, body string
-		header             map[string]string
-	}{
-		{http.MethodPost, "/files", "a note", map[string]string{"Content-Type": "text/plain", "X-File-Name": "note.txt"}},
-	} {
-		header := map[string]string{}
-		maps.Copy(header, owner)
-		maps.Copy(header, call.header)
-
-		a := s.Do(call.method, call.path, call.body, header)
-
-		assert.Equal(t, http.StatusNotImplemented, a.Status, "%s %s", call.method, call.path)
-		assert.Equal(t, "unavailable", code(t, a))
-	}
 }
 
 // The contract's x-permission is checked before any handler, built or not: a

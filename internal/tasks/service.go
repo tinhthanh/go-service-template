@@ -2,11 +2,10 @@
 // many of them are late, one, making, changing and deleting one. A task of a
 // workspace the caller isn't in is not there for them (404); what a role may
 // do is the contract's x-permission, checked before a method runs
-// (platform/auth.Rules). A task's project is one of its own workspace's; a
-// task is late when its due day is before today (the server's day, in UTC)
-// and it isn't done. A file can't be named yet: nothing keeps one (POST
-// /files is not built), so any is refused as the client's mock refuses a
-// file it never got.
+// (platform/auth.Rules). A task's project is one of its own workspace's; its
+// file is one its maker sent (internal/files), refused otherwise as the
+// client's mock refuses a file it never got. A task is late when its due day
+// is before today (the server's day, in UTC) and it isn't done.
 package tasks
 
 import (
@@ -33,7 +32,15 @@ type Task struct {
 	// Project and ProjectName are its project's; "" has none.
 	Project     string
 	ProjectName string
-	UpdatedAt   time.Time
+	// Attachment is its file; nil has none.
+	Attachment *Attachment
+	UpdatedAt  time.Time
+}
+
+// Attachment is a file a task names.
+type Attachment struct {
+	ID, Name, Type string
+	Size           int
 }
 
 // Query is what a list asks of the store.
@@ -75,6 +82,8 @@ type Store interface {
 	Get(ctx context.Context, id string) (Task, error)
 	// ProjectName is the name of the workspace's project, or problem.ErrNotFound.
 	ProjectName(ctx context.Context, workspace, id string) (string, error)
+	// AttachmentOf is the file when owner sent it, or problem.ErrNotFound.
+	AttachmentOf(ctx context.Context, id, owner string) (Attachment, error)
 	Create(ctx context.Context, t *Task) (Task, error)
 	Update(ctx context.Context, t *Task) (Task, error)
 	Delete(ctx context.Context, id string) error
@@ -166,7 +175,7 @@ func (s *Service) Create(ctx context.Context, in *Input) (Task, error) {
 		next.Status = in.Status
 	}
 
-	if err := s.apply(ctx, &next, &Patch{Title: &in.Title, Due: in.Due, Project: in.Project, Attachment: in.Attachment}); err != nil {
+	if err := s.apply(ctx, p, &next, &Patch{Title: &in.Title, Due: in.Due, Project: in.Project, Attachment: in.Attachment}); err != nil {
 		return Task{}, err
 	}
 
@@ -181,10 +190,10 @@ func (s *Service) Create(ctx context.Context, in *Input) (Task, error) {
 // Patch is what changing a task sends: nil is left as it is, and a No… takes it off (the client
 // sent null).
 type Patch struct {
-	Title, Status       *string
-	Due                 *time.Time
-	Project, Attachment *string
-	NoDue, NoProject    bool
+	Title, Status                  *string
+	Due                            *time.Time
+	Project, Attachment            *string
+	NoDue, NoProject, NoAttachment bool
 }
 
 // Update changes one of the caller's tasks. Its workspace stays: a task isn't moved.
@@ -199,7 +208,7 @@ func (s *Service) Update(ctx context.Context, id string, patch *Patch) (Task, er
 		return Task{}, err
 	}
 
-	if err := s.apply(ctx, &next, patch); err != nil {
+	if err := s.apply(ctx, p, &next, patch); err != nil {
 		return Task{}, err
 	}
 
@@ -230,8 +239,8 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 }
 
 // apply puts what a create or a change sends on the task, refusing what the rules don't allow: no
-// title, a project of another workspace (or none), a file.
-func (s *Service) apply(ctx context.Context, t *Task, patch *Patch) error {
+// title, a project of another workspace (or none), a file the caller didn't send.
+func (s *Service) apply(ctx context.Context, p *auth.Principal, t *Task, patch *Patch) error {
 	if patch.Title != nil {
 		t.Title = strings.TrimSpace(*patch.Title)
 		if t.Title == "" {
@@ -267,9 +276,25 @@ func (s *Service) apply(ctx context.Context, t *Task, patch *Patch) error {
 		t.Project, t.ProjectName = *patch.Project, name
 	}
 
-	// A task has no file to take off (null), and none can be named yet.
-	if patch.Attachment != nil {
-		return problem.Invalid("attachment", "That file didn't arrive; add it again.")
+	return s.attach(ctx, p, t, patch)
+}
+
+// attach takes the task's file off (null), or names one the caller sent; the one it has already stays its own.
+func (s *Service) attach(ctx context.Context, p *auth.Principal, t *Task, patch *Patch) error {
+	switch {
+	case patch.NoAttachment:
+		t.Attachment = nil
+	case patch.Attachment != nil && (t.Attachment == nil || t.Attachment.ID != *patch.Attachment):
+		a, err := s.store.AttachmentOf(ctx, *patch.Attachment, p.ID)
+		if errors.Is(err, problem.ErrNotFound) {
+			return problem.Invalid("attachment", "That file didn't arrive; add it again.")
+		}
+
+		if err != nil {
+			return fmt.Errorf("tasks: a file: %w", err)
+		}
+
+		t.Attachment = &a
 	}
 
 	return nil

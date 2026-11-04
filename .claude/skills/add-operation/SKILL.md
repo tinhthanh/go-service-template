@@ -26,6 +26,6 @@ the stub's place. Two features defining the same method fail to compile.
    the contract doesn't name answers a type of its own with the `Visit<Op>Response` method
    (`session.withCookies`).
 5. **Tests**: in `handler_test.go` through `servertest`, each behaviour a test named as what the client
-   gets; a store test (`integration`) for a new query. The test of `internal/server` that lists
-   operations answering 501 names only ones still not built: move yours out of it.
+   gets; a store test (`integration`) for a new query. Every stub's 501 is held by one test
+   of `internal/api` that names no operation, so building one changes no test there.
 6. `make check`; a CHANGELOG line; the `open-pr` skill.

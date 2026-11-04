@@ -16,6 +16,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/tinhthanh/go-service-template/internal/files"
+	"github.com/tinhthanh/go-service-template/internal/files/filestest"
 	"github.com/tinhthanh/go-service-template/internal/platform/auth"
 	"github.com/tinhthanh/go-service-template/internal/platform/config"
 	"github.com/tinhthanh/go-service-template/internal/platform/contracttest"
@@ -114,11 +116,17 @@ func New(t *testing.T) *Server {
 	prs := projectstest.New(clock.Now)
 	prs.Add(&projects.Project{ID: Vault, Workspace: Initrode, Name: "Vault", Description: "Kept by another team.", Owner: "Kim", UpdatedAt: clock.Now()})
 
-	// A task's project is read from the projects store, as the tasks queries JOIN projects.
+	fls := filestest.New()
+
+	// A task's project and file are read from those stores, as the tasks queries JOIN projects and files.
 	tks := taskstest.New(clock.Now, func(ctx context.Context, id string) (string, string, error) {
 		p, err := prs.Get(ctx, id)
 
 		return p.Workspace, p.Name, err
+	}, func(id, owner string) (tasks.Attachment, error) {
+		f, err := fls.Of(id, owner)
+
+		return tasks.Attachment{ID: f.ID, Name: f.Name, Type: f.Type, Size: f.Size}, err
 	})
 	tks.Add(&tasks.Task{ID: Safe, Workspace: Initrode, Title: "Open the safe", Project: Vault, UpdatedAt: clock.Now()})
 
@@ -130,6 +138,7 @@ func New(t *testing.T) *Server {
 		Workspaces: workspaces.NewHandler(workspaces.New(ws)),
 		Projects:   projects.NewHandler(projects.New(prs)),
 		Tasks:      tasks.NewHandler(tasks.New(tks, clock.Now)),
+		Files:      files.NewHandler(files.New(fls)),
 		Search:     search.NewHandler(search.New(searchtest.New(func() []searchtest.Row { return found(prs, tks) }))),
 	})
 	require.NoError(t, err)

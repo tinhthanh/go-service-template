@@ -99,7 +99,7 @@ func (s *PGStore) ProjectName(ctx context.Context, workspace, id string) (string
 // Create -.
 func (s *PGStore) Create(ctx context.Context, t *Task) (Task, error) {
 	id, err := s.q.CreateTask(ctx, db.CreateTaskParams{
-		WorkspaceID: t.Workspace, Title: t.Title, Status: t.Status, Due: date(t.Due), ProjectID: t.Project,
+		WorkspaceID: t.Workspace, Title: t.Title, Status: t.Status, Due: date(t.Due), ProjectID: t.Project, AttachmentID: attachmentID(t),
 	})
 	if err != nil {
 		return Task{}, fmt.Errorf("tasks store: create: %w", err)
@@ -114,7 +114,7 @@ func (s *PGStore) Update(ctx context.Context, t *Task) (Task, error) {
 		return Task{}, problem.ErrNotFound
 	}
 
-	id, err := s.q.UpdateTask(ctx, db.UpdateTaskParams{ID: t.ID, Title: t.Title, Status: t.Status, Due: date(t.Due), ProjectID: t.Project})
+	id, err := s.q.UpdateTask(ctx, db.UpdateTaskParams{ID: t.ID, Title: t.Title, Status: t.Status, Due: date(t.Due), ProjectID: t.Project, AttachmentID: attachmentID(t)})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Task{}, problem.ErrNotFound
 	}
@@ -145,12 +145,42 @@ func of(r db.TaskRow) Task {
 		Project: r.ProjectID, ProjectName: r.ProjectName, UpdatedAt: r.UpdatedAt,
 	}
 
+	if r.AttachmentID != "" {
+		t.Attachment = &Attachment{ID: r.AttachmentID, Name: r.AttachmentName, Type: r.AttachmentType, Size: int(r.AttachmentSize)}
+	}
+
 	if r.Due.Valid {
 		d := r.Due.Time.UTC()
 		t.Due = &d
 	}
 
 	return t
+}
+
+// AttachmentOf -.
+func (s *PGStore) AttachmentOf(ctx context.Context, id, owner string) (Attachment, error) {
+	if !isUUID(id) {
+		return Attachment{}, problem.ErrNotFound
+	}
+
+	row, err := s.q.AttachmentOf(ctx, db.AttachmentOfParams{ID: id, OwnerID: owner})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Attachment{}, problem.ErrNotFound
+	}
+
+	if err != nil {
+		return Attachment{}, fmt.Errorf("tasks store: a file: %w", err)
+	}
+
+	return Attachment{ID: row.ID, Name: row.Name, Type: row.Type, Size: int(row.Size)}, nil
+}
+
+func attachmentID(t *Task) string {
+	if t.Attachment == nil {
+		return ""
+	}
+
+	return t.Attachment.ID
 }
 
 func isUUID(s string) bool { return uuid.Validate(s) == nil }

@@ -20,6 +20,7 @@ var (
 	ErrConflict     = errors.New("conflict")
 	ErrInvalid      = errors.New("invalid")
 	ErrNotBuilt     = errors.New("not built yet")
+	ErrTooLarge     = errors.New("too large")
 )
 
 // FieldError is ErrInvalid on one field, with the words the form puts beside it.
@@ -55,6 +56,10 @@ type Body struct {
 
 // Of is a refusal's status and body; anything not named above is a 500.
 func Of(err error) (int, Body) {
+	if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+		err = ErrTooLarge
+	}
+
 	if field, ok := errors.AsType[*FieldError](err); ok {
 		return field.Status, Body{Error: field.Message, Code: "invalid", Field: field.Field}
 	}
@@ -83,6 +88,7 @@ func kinds() []kind {
 		{ErrNotFound, http.StatusNotFound, "not_found", "It isn't there any more."},
 		{ErrConflict, http.StatusConflict, "conflict", "Someone changed this first. Load it again."},
 		{ErrNotBuilt, http.StatusNotImplemented, "unavailable", "This isn't built on the server yet."},
+		{ErrTooLarge, http.StatusRequestEntityTooLarge, "too_large", "That's more than the server takes."},
 	}
 }
 

@@ -72,7 +72,7 @@ func (h *Handler) UpdateTask(ctx context.Context, req api.UpdateTaskRequestObjec
 	b := req.Body
 	patch := Patch{
 		Title: b.Title, Due: dayOf(b.Due), Project: b.Project, Attachment: b.Attachment,
-		NoDue: httpx.SentNull(ctx, "due"), NoProject: httpx.SentNull(ctx, "project"),
+		NoDue: httpx.SentNull(ctx, "due"), NoProject: httpx.SentNull(ctx, "project"), NoAttachment: httpx.SentNull(ctx, "attachment"),
 	}
 
 	if b.Status != nil {
@@ -109,6 +109,10 @@ func contract(t *Task) api.Task {
 			Id   string `json:"id"` //nolint:revive,staticcheck // the generated api.Task.Project type names it Id
 			Name string `json:"name"`
 		}{Id: t.Project, Name: t.ProjectName}
+	}
+
+	if a := t.Attachment; a != nil {
+		out.Attachment = &api.Attachment{Id: a.ID, Name: a.Name, Type: a.Type, Size: a.Size}
 	}
 
 	return out

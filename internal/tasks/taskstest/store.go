@@ -20,20 +20,29 @@ import (
 // Projects is the projects a task may name: the workspace and name of one, or problem.ErrNotFound.
 type Projects func(ctx context.Context, id string) (workspace, name string, err error)
 
+// Files is the files a task may name: one its owner sent, or problem.ErrNotFound.
+type Files func(id, owner string) (tasks.Attachment, error)
+
 // Store -.
 type Store struct {
 	mu       sync.Mutex
 	now      func() time.Time
 	projects Projects
+	files    Files
 	rows     []tasks.Task
 	n        int
 }
 
 var _ tasks.Store = (*Store)(nil)
 
-// New is an empty store on the clock given, its tasks' projects read from projects.
-func New(now func() time.Time, projects Projects) *Store {
-	return &Store{now: now, projects: projects}
+// New is an empty store on the clock given, its tasks' projects read from projects and their files from files.
+func New(now func() time.Time, projects Projects, files Files) *Store {
+	return &Store{now: now, projects: projects, files: files}
+}
+
+// AttachmentOf -.
+func (s *Store) AttachmentOf(_ context.Context, id, owner string) (tasks.Attachment, error) {
+	return s.files(id, owner)
 }
 
 // Add is a task as it is, its id kept.
