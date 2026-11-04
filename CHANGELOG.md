@@ -4,6 +4,9 @@ What a client of the service would notice, newest first.
 
 ## Unreleased
 
+- What each operation needs is read from the contract's `x-permission` and `x-roles`, and checked
+  before any handler: an operation not built yet refuses a caller its role doesn't allow (401, 403)
+  before it answers 501.
 - A request whose value none of a field's `anyOf` takes (a day that isn't one) names that `field`.
 - A projects `cursor` past what a page can start at begins at the top instead of a 500.
 - `GET /api/workspaces` is the caller's workspaces; `POST /api/workspaces` makes one they belong to

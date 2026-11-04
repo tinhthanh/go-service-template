@@ -35,18 +35,32 @@ func code(t *testing.T, a contracttest.Answer) string {
 func TestServer_AnOperationNotBuiltSaysSoInTheContractsWords(t *testing.T) {
 	t.Parallel()
 
-	c := client(t)
+	s := servertest.New(t)
+	owner := s.As(servertest.Owner)
 
 	for _, call := range []struct{ method, path, body string }{
 		{http.MethodGet, "/tasks", ""},
 		{http.MethodGet, "/tasks/t-1", ""},
 		{http.MethodDelete, "/tasks/t-1", ""},
 	} {
-		a := c.Do(call.method, call.path, call.body, nil)
+		a := s.Do(call.method, call.path, call.body, owner)
 
 		assert.Equal(t, http.StatusNotImplemented, a.Status, "%s %s", call.method, call.path)
 		assert.Equal(t, "unavailable", code(t, a))
 	}
+}
+
+// The contract's x-permission is checked before any handler, built or not: a
+// feature can't forget it, and one not built yet already refuses as it will.
+func TestServer_EveryOperationsXPermissionIsCheckedFirst(t *testing.T) {
+	t.Parallel()
+
+	s := servertest.New(t)
+
+	assert.Equal(t, "unauthorized", code(t, s.Do(http.MethodGet, "/tasks", "", nil)), "signed-in: nobody is 401")
+	assert.Equal(t, "forbidden", code(t, s.Do(http.MethodDelete, "/tasks/t-1", "", s.As(servertest.Member))), "task.delete is an owner's")
+	assert.Equal(t, "forbidden", code(t, s.Do(http.MethodPost, "/tasks", `{"title": "Plan"}`, s.As(servertest.Viewer))), "task.create isn't a viewer's")
+	assert.Equal(t, http.StatusOK, s.Do(http.MethodPost, "/session", `{"email": "viewer@acme.test", "password": "`+servertest.Password+`"}`, nil).Status, "public: anyone")
 }
 
 func TestServer_ARequestTheContractRefusesIsInvalidOnItsField(t *testing.T) {

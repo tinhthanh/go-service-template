@@ -1,8 +1,8 @@
 // Package auth is who is calling and what they may do: the Principal a
 // session cookie names (found by an Authenticator, which the session
 // feature is), on the request's context for every handler; the CSRF rule
-// for writes; and the role table the client keeps too (its
-// lib/permissions.ts). It knows no feature: internal/server passes the
+// for writes; and the contract's x-permission and x-roles (Rules). It knows
+// no feature: internal/server passes the
 // Authenticator in.
 package auth
 

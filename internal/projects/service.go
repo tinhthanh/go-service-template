@@ -1,7 +1,8 @@
 // Package projects is a workspace's projects: a page of those that match,
 // one, making, changing and deleting one, and the tags in use. A project of
 // a workspace the caller isn't in is not there for them (404); what a role
-// may do is platform/auth's table. A name is its workspace's own, in any case.
+// may do is the contract's x-permission, checked before a method runs
+// (platform/auth.Rules). A name is its workspace's own, in any case.
 package projects
 
 import (
@@ -137,7 +138,7 @@ type Input struct {
 
 // Create makes a project in one of the caller's workspaces (their first, when none is named).
 func (s *Service) Create(ctx context.Context, in Input) (Project, error) {
-	p, err := auth.Allowed(ctx, "project.create")
+	p, err := auth.Required(ctx)
 	if err != nil {
 		return Project{}, err
 	}
@@ -172,7 +173,7 @@ type Patch struct {
 
 // Update changes one of the caller's projects.
 func (s *Service) Update(ctx context.Context, id string, patch Patch) (Project, error) {
-	p, err := auth.Allowed(ctx, "project.edit")
+	p, err := auth.Required(ctx)
 	if err != nil {
 		return Project{}, err
 	}
@@ -211,7 +212,7 @@ func (s *Service) Update(ctx context.Context, id string, patch Patch) (Project, 
 
 // Delete removes one of the caller's projects.
 func (s *Service) Delete(ctx context.Context, id string) error {
-	p, err := auth.Allowed(ctx, "project.delete")
+	p, err := auth.Required(ctx)
 	if err != nil {
 		return err
 	}

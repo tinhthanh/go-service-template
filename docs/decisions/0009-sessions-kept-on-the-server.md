@@ -17,8 +17,7 @@ the person (with their workspaces) on the request; `auth.CSRF` refuses a write w
 client's header.
 
 **Consequences.** Every call reads a row (an index on the hash); a session ends the moment it is
-deleted. The role table is in two places, the client's `lib/permissions.ts` and
-`platform/auth/permissions.go`, until the contract names each operation's action (phase 4).
+deleted. What a role may do is the contract's (ADR 0012).
 
 **Revisit if.** A call's read of the session row shows in latency: cache it for seconds, never longer
 than a sign-out may take to apply.

@@ -68,7 +68,13 @@ func New(cfg *config.Config, log *slog.Logger, f Features) (http.Handler, error)
 
 	ops := &operations{sessionOps: f.Session, workspaceOps: f.Workspaces, projectOps: f.Projects}
 
-	strict := api.NewStrictHandlerWithOptions(ops, nil, api.StrictHTTPServerOptions{
+	// What each operation needs, and who may: the contract's x-permission and x-roles.
+	rules, err := auth.RulesOf(spec)
+	if err != nil {
+		return nil, fmt.Errorf("server: %w", err)
+	}
+
+	strict := api.NewStrictHandlerWithOptions(ops, []api.StrictMiddlewareFunc{permitted(rules)}, api.StrictHTTPServerOptions{
 		RequestErrorHandlerFunc:  func(w http.ResponseWriter, r *http.Request, err error) { problem.Write(w, r, log, invalid(err)) },
 		ResponseErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) { problem.Write(w, r, log, err) },
 	})
@@ -102,6 +108,20 @@ func New(cfg *config.Config, log *slog.Logger, f Features) (http.Handler, error)
 		httpx.SecurityHeaders(),
 		httpx.CORS(cfg.CORSOrigins),
 	), nil
+}
+
+// permitted checks an operation's x-permission before its handler, or its
+// stub, runs: a role refused is 403 whether or not the operation is built.
+func permitted(rules *auth.Rules) api.StrictMiddlewareFunc {
+	return func(next api.StrictHandlerFunc, operation string) api.StrictHandlerFunc {
+		return func(ctx context.Context, w http.ResponseWriter, r *http.Request, req any) (any, error) {
+			if err := rules.Check(ctx, operation); err != nil {
+				return nil, err
+			}
+
+			return next(ctx, w, r, req)
+		}
+	}
 }
 
 // fieldInReason reads the field a JSON Schema refusal is about from
