@@ -1,0 +1,5 @@
+#!/bin/sh
+# make check before a push: generated code current, lint, every test.
+# make verify adds what CI adds (tidy modules, vulnerabilities): run it before a pull request.
+set -e
+make -s check

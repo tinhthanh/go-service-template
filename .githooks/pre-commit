@@ -1,0 +1,12 @@
+#!/bin/sh
+# Formats the Go files staged, puts them back on the stage, then checks the
+# generated code and the lint. Never --no-verify: CI runs the same and more.
+set -e
+files=$(git diff --cached --name-only --diff-filter=ACM -- '*.go' | grep -v '\.gen\.go$' || true)
+if [ -n "$files" ]; then
+  # shellcheck disable=SC2086 # one path per word
+  go tool golangci-lint fmt $files
+  # shellcheck disable=SC2086
+  git add $files
+fi
+make -s gen-check lint
