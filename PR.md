@@ -40,6 +40,7 @@ Your code is affected by 0 vulnerabilities.
   - `TestCreateTask_TakesAStatusADayAndAProjectOfItsWorkspace`
   - `TestCreateTask_WhatTheRulesRefuseIsInvalidOnItsField`
   - `TestUpdateTask_ChangesWhatItSendsAndKeepsTheRest`
+  - `TestUpdateTask_LeavesTheTaskInItsWorkspace`
   - `TestUpdateTask_NullTakesADayAProjectOrAFileOff`
   - `TestUpdateTask_WhatTheRulesRefuseIsInvalidOnItsField`
   - `TestTasks_EachRoleMayDoWhatTheClientsTableSays`
@@ -77,7 +78,8 @@ None.
   its new name, and a deleted one leaves its tasks with no project (`ON DELETE SET NULL`).
 - **`workspace` in a PATCH is ignored**: a task isn't moved, as the mock's `taskFrom` ignores it.
 - **Create** puts the task in the caller's first workspace when none is named (the mock uses its
-  first workspace), to do unless a `status` is sent; the title is trimmed.
+  first workspace), to do unless a `status` is sent; the title is trimmed. A caller in no workspace
+  at all is answered 404, as for a workspace that isn't theirs (the mock falls back to `w-acme`).
 - **Words** are the mock's: "A task needs a title.", "Pick a project in this workspace.", "That
   file didn't arrive; add it again.".
 - **Ids** are UUIDs made by Postgres, not the mock's `t-<title>` slugs; the client only echoes them.
@@ -92,4 +94,9 @@ None.
   and fails when the generated body is decoded, so it is 400 `invalid` with no `field` (the client
   never sends one: its picker makes days). Naming the field means reading the decode error in
   `internal/server`; left for a change of its own.
+- **A project deleted between the check and the save** fails the foreign key: a logged 500, not
+  422 on `project`. Rare; mapping SQLSTATE 23503 in the store is a change of its own.
+- **Lookups by id** compare `id::text`, as projects does, so a malformed id is 404 rather than a
+  cast error; that keeps the primary key's index out of those reads. `tasks_project` still serves
+  the foreign key when a project is deleted. Worth one fix for every feature, not just this one.
 - **Seed**: `make seed` makes no tasks; the people can make them from the app.

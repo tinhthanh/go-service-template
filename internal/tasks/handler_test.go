@@ -272,20 +272,29 @@ func TestCreateTask_WhatTheRulesRefuseIsInvalidOnItsField(t *testing.T) {
 
 	s := acme(t)
 
-	for body, want := range map[string]string{
-		`{"title": "  "}`:                        `{"error": "A task needs a title.", "code": "invalid", "field": "title"}`,
-		`{"title": "X", "project": "p-vault"}`:   `{"error": "Pick a project in this workspace.", "code": "invalid", "field": "project"}`,
-		`{"title": "X", "project": "p-none"}`:    `{"error": "Pick a project in this workspace.", "code": "invalid", "field": "project"}`,
-		`{"title": "X", "attachment": "f-1"}`:    `{"error": "That file didn't arrive; add it again.", "code": "invalid", "field": "attachment"}`,
-		`{"title": "X", "status": "blocked"}`:    `{"error": "This value isn't accepted here.", "code": "invalid", "field": "status"}`,
-		`{"title": "X", "due": "next tuesday"}`:  `{"error": "This value isn't accepted here.", "code": "invalid", "field": "due"}`,
-		`{"title": "X", "owner": "Olive Owner"}`: `{"error": "This value isn't accepted here.", "code": "invalid", "field": "owner"}`,
-		`{"status": "todo"}`:                     `{"error": "This is needed.", "code": "invalid", "field": "title"}`,
-	} {
-		a := s.Do(http.MethodPost, "/tasks", body, s.As(servertest.Member))
+	const (
+		rule     = http.StatusUnprocessableEntity // the service's rules, as the mock answers
+		contract = http.StatusBadRequest          // the contract's shape, refused before the handler
+	)
 
-		assert.Contains(t, []int{http.StatusBadRequest, http.StatusUnprocessableEntity}, a.Status, body)
-		assert.JSONEq(t, want, string(a.Body), body)
+	for _, c := range []struct {
+		body   string
+		status int
+		want   string
+	}{
+		{`{"title": "  "}`, rule, `{"error": "A task needs a title.", "code": "invalid", "field": "title"}`},
+		{`{"title": "X", "project": "p-vault"}`, rule, `{"error": "Pick a project in this workspace.", "code": "invalid", "field": "project"}`},
+		{`{"title": "X", "project": "p-none"}`, rule, `{"error": "Pick a project in this workspace.", "code": "invalid", "field": "project"}`},
+		{`{"title": "X", "attachment": "f-1"}`, rule, `{"error": "That file didn't arrive; add it again.", "code": "invalid", "field": "attachment"}`},
+		{`{"title": "X", "status": "blocked"}`, contract, `{"error": "This value isn't accepted here.", "code": "invalid", "field": "status"}`},
+		{`{"title": "X", "due": "next tuesday"}`, contract, `{"error": "This value isn't accepted here.", "code": "invalid", "field": "due"}`},
+		{`{"title": "X", "owner": "Olive Owner"}`, contract, `{"error": "This value isn't accepted here.", "code": "invalid", "field": "owner"}`},
+		{`{"status": "todo"}`, contract, `{"error": "This is needed.", "code": "invalid", "field": "title"}`},
+	} {
+		a := s.Do(http.MethodPost, "/tasks", c.body, s.As(servertest.Member))
+
+		assert.Equal(t, c.status, a.Status, c.body)
+		assert.JSONEq(t, c.want, string(a.Body), c.body)
 	}
 
 	nobody := s.Do(http.MethodPost, "/tasks", `{"title": "X", "workspace": "w-nobody"}`, s.As(servertest.Member))
@@ -318,6 +327,17 @@ func TestUpdateTask_ChangesWhatItSendsAndKeepsTheRest(t *testing.T) {
 	assert.Equal(t, "Blog", decode(t, moved.Body).Project.Name)
 }
 
+func TestUpdateTask_LeavesTheTaskInItsWorkspace(t *testing.T) {
+	t.Parallel()
+
+	s := acme(t)
+	a := s.Do(http.MethodPatch, "/tasks/t-notes", `{"workspace": "`+servertest.Initrode+`", "title": "Notes"}`, s.As(servertest.Member))
+
+	require.Equal(t, http.StatusOK, a.Status, string(a.Body))
+	assert.Equal(t, servertest.Acme, decode(t, a.Body).Workspace, "a task isn't moved, as the client's mock ignores it")
+	assert.Equal(t, "Notes", decode(t, a.Body).Title)
+}
+
 func TestUpdateTask_NullTakesADayAProjectOrAFileOff(t *testing.T) {
 	t.Parallel()
 
@@ -343,17 +363,21 @@ func TestUpdateTask_WhatTheRulesRefuseIsInvalidOnItsField(t *testing.T) {
 	s := acme(t)
 	me := s.As(servertest.Member)
 
-	for body, field := range map[string]string{
-		`{"title": ""}`:           "title",
-		`{"project": "p-vault"}`:  "project",
-		`{"attachment": "f-1"}`:   "attachment",
-		`{"due": "Feb 30"}`:       "due",
-		`{"status": "cancelled"}`: "status",
+	for _, c := range []struct {
+		body   string
+		status int
+		want   string
+	}{
+		{`{"title": ""}`, http.StatusUnprocessableEntity, `{"error": "A task needs a title.", "code": "invalid", "field": "title"}`},
+		{`{"project": "p-vault"}`, http.StatusUnprocessableEntity, `{"error": "Pick a project in this workspace.", "code": "invalid", "field": "project"}`},
+		{`{"attachment": "f-1"}`, http.StatusUnprocessableEntity, `{"error": "That file didn't arrive; add it again.", "code": "invalid", "field": "attachment"}`},
+		{`{"due": "Feb 30"}`, http.StatusBadRequest, `{"error": "This value isn't accepted here.", "code": "invalid", "field": "due"}`},
+		{`{"status": "cancelled"}`, http.StatusBadRequest, `{"error": "This value isn't accepted here.", "code": "invalid", "field": "status"}`},
 	} {
-		a := s.Do(http.MethodPatch, "/tasks/t-checkout", body, me)
+		a := s.Do(http.MethodPatch, "/tasks/t-checkout", c.body, me)
 
-		assert.Contains(t, []int{http.StatusBadRequest, http.StatusUnprocessableEntity}, a.Status, body)
-		assert.Contains(t, string(a.Body), `"field":"`+field+`"`, body)
+		assert.Equal(t, c.status, a.Status, c.body)
+		assert.JSONEq(t, c.want, string(a.Body), c.body)
 	}
 
 	got := decode(t, s.Do(http.MethodGet, "/tasks/t-checkout", "", me).Body)

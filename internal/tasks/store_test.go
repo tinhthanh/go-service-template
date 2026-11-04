@@ -15,9 +15,6 @@ import (
 	"github.com/tinhthanh/go-service-template/internal/tasks"
 )
 
-// today is the day the store's tests count late from.
-var today = *on("2026-11-04") //nolint:gochecknoglobals // a fixed day the tests read
-
 // acmeDB has Acme with its project Shop and Beta with Beta site, and Acme's tasks changed an hour
 // apart, the last the newest: Checkout (Shop, due the 6th), Retries (due the 3rd), Icons (done,
 // due the 1st) and Banner (no day); and one of Beta's.
@@ -71,7 +68,7 @@ func listedTasks(t *testing.T, s *tasks.PGStore, q tasks.Query) ([]string, tasks
 		q.Limit = tasks.PageSize
 	}
 
-	q.Today = today
+	q.Today = *on("2026-11-04")
 
 	items, counts, err := s.List(t.Context(), &q)
 	require.NoError(t, err)

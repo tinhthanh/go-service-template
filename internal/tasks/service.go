@@ -176,12 +176,12 @@ func (s *Service) Create(ctx context.Context, in *Input) (Task, error) {
 		return Task{}, problem.ErrNotFound
 	}
 
-	next := Task{Workspace: ws, Status: "todo", Due: in.Due}
+	next := Task{Workspace: ws, Status: "todo"}
 	if in.Status != "" {
 		next.Status = in.Status
 	}
 
-	if err := s.apply(ctx, &next, &Patch{Title: &in.Title, Project: in.Project, Attachment: in.Attachment}); err != nil {
+	if err := s.apply(ctx, &next, &Patch{Title: &in.Title, Due: in.Due, Project: in.Project, Attachment: in.Attachment}); err != nil {
 		return Task{}, err
 	}
 
