@@ -4,6 +4,12 @@ What a client of the service would notice, newest first.
 
 ## Unreleased
 
+- `GET /api/workspaces` is the caller's workspaces; `POST /api/workspaces` makes one they belong to
+  at once, its id made from its name (`w-acme-labs`).
+- Projects: a page of the caller's that match (`workspace`, `q`, `status`, `tags`, `sort`,
+  `cursor`, `limit`) with the total of every match; one; making, changing and deleting one; and
+  the tags in use. Another workspace's project is 404; a viewer may only read, only an owner deletes;
+  a name taken in the workspace is 422 on `name`.
 - Signing in (`POST /api/session`) sets an httpOnly session cookie and a refresh cookie for
   `/api/session/refresh`; `GET /api/session` is who is signed in (401 when nobody is, or the session
   has ended); refreshing gives new cookies and the old ones stop; signing out ends the session.

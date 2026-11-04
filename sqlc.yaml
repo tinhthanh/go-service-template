@@ -20,3 +20,23 @@ sql:
         sql_package: pgx/v5
         emit_empty_slices: true
         output_files_suffix: .gen
+  - engine: postgresql
+    schema: migrations
+    queries: internal/workspaces/queries.sql
+    gen:
+      go:
+        package: db
+        out: internal/workspaces/db
+        sql_package: pgx/v5
+        emit_empty_slices: true
+        output_files_suffix: .gen
+  - engine: postgresql
+    schema: migrations
+    queries: internal/projects/queries.sql
+    gen:
+      go:
+        package: db
+        out: internal/projects/db
+        sql_package: pgx/v5
+        emit_empty_slices: true
+        output_files_suffix: .gen

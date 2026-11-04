@@ -21,7 +21,9 @@ import (
 	"github.com/tinhthanh/go-service-template/internal/platform/config"
 	"github.com/tinhthanh/go-service-template/internal/platform/httpx"
 	"github.com/tinhthanh/go-service-template/internal/platform/problem"
+	"github.com/tinhthanh/go-service-template/internal/projects"
 	"github.com/tinhthanh/go-service-template/internal/session"
+	"github.com/tinhthanh/go-service-template/internal/workspaces"
 )
 
 // operations is every operation of the contract. A feature's handler,
@@ -29,9 +31,18 @@ import (
 // feature's method wins over the stub, and two features answering the same
 // operation fail to compile (an ambiguous selector).
 type operations struct {
-	*session.Handler
+	*sessionOps
+	*workspaceOps
+	*projectOps
 	stubs
 }
+
+// Each feature's handler is called Handler; an alias names its field here.
+type (
+	sessionOps   = session.Handler
+	workspaceOps = workspaces.Handler
+	projectOps   = projects.Handler
+)
 
 type stubs struct{ api.Unimplemented }
 
@@ -39,8 +50,10 @@ var _ api.StrictServerInterface = (*operations)(nil)
 
 // Features are the features' handlers, and the session that names callers.
 type Features struct {
-	Auth    auth.Authenticator
-	Session *session.Handler
+	Auth       auth.Authenticator
+	Session    *session.Handler
+	Workspaces *workspaces.Handler
+	Projects   *projects.Handler
 }
 
 // New is the service's handler.
@@ -53,7 +66,9 @@ func New(cfg *config.Config, log *slog.Logger, f Features) (http.Handler, error)
 	// The router matches paths without the prefix; the validator does too.
 	spec.Servers = nil
 
-	strict := api.NewStrictHandlerWithOptions(&operations{Handler: f.Session}, nil, api.StrictHTTPServerOptions{
+	ops := &operations{sessionOps: f.Session, workspaceOps: f.Workspaces, projectOps: f.Projects}
+
+	strict := api.NewStrictHandlerWithOptions(ops, nil, api.StrictHTTPServerOptions{
 		RequestErrorHandlerFunc:  func(w http.ResponseWriter, r *http.Request, err error) { problem.Write(w, r, log, invalid(err)) },
 		ResponseErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) { problem.Write(w, r, log, err) },
 	})
