@@ -54,6 +54,11 @@ type Answer struct {
 	Body   []byte
 }
 
+// Cookies are the cookies the answer set.
+func (a *Answer) Cookies() []*http.Cookie {
+	return (&http.Response{Header: a.Header}).Cookies()
+}
+
 // Do sends the request (a path under the prefix) and checks the answer.
 // A write carries X-Requested-With, as the client's own calls do.
 func (c *Client) Do(method, path, body string, header map[string]string) Answer {

@@ -48,9 +48,13 @@ func TestOf_AFieldRefusalNamesItsField(t *testing.T) {
 
 	status, body := problem.Of(fmt.Errorf("create: %w", problem.Invalid("name", "A project needs a name.")))
 
-	assert.Equal(t, http.StatusBadRequest, status)
+	assert.Equal(t, http.StatusUnprocessableEntity, status, "a value the rules refuse, as the client's mock answers it")
 	assert.Equal(t, problem.Body{Error: "A project needs a name.", Code: "invalid", Field: "name"}, body)
-	assert.ErrorIs(t, problem.Invalid("name", "x"), problem.ErrInvalid)
+	require.ErrorIs(t, problem.Invalid("name", "x"), problem.ErrInvalid)
+
+	status, body = problem.Of(problem.Malformed("status", "This value isn't accepted here."))
+	assert.Equal(t, http.StatusBadRequest, status, "a request the contract refuses")
+	assert.Equal(t, "status", body.Field)
 }
 
 func TestWrite_TheRawErrorIsLoggedNeverSent(t *testing.T) {

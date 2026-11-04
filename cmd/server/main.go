@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/tinhthanh/go-service-template/internal/platform/config"
+	"github.com/tinhthanh/go-service-template/internal/platform/db"
 	"github.com/tinhthanh/go-service-template/internal/platform/logging"
 	"github.com/tinhthanh/go-service-template/internal/server"
 )
@@ -36,15 +37,32 @@ func run() error {
 
 	log := logging.New(cfg.LogLevel)
 
-	handler, err := server.New(&cfg, log)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if cfg.MigrateOnStart {
+		if err := db.Migrate(cfg.DatabaseURL); err != nil {
+			return err
+		}
+	}
+
+	pool, err := db.Connect(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	features, err := server.Wire(&cfg, pool)
+	if err != nil {
+		return err
+	}
+
+	handler, err := server.New(&cfg, log, features)
 	if err != nil {
 		return err
 	}
 
 	srv := &http.Server{Addr: cfg.Addr, Handler: handler, ReadHeaderTimeout: _readHeaderTimeout}
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	failed := make(chan error, 1)
 

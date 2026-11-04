@@ -1,6 +1,6 @@
 # 0008: Stores in SQL with sqlc, on pgx
 
-**Status:** accepted, 2026-11-04; applies from the first store
+**Status:** accepted, 2026-11-04; in use from the session store (2026-11-04)
 
 **Context.** A query built in Go (Squirrel, which calls itself complete and was last changed in
 2024) or by an ORM fails at run time when a column is wrong. sqlc reads the migrations and the
@@ -11,7 +11,9 @@ the golang-migrate files in `migrations/`. A list whose filters and sort are cho
 pgx with one shared pattern, its arguments always bound. A store is tested on a real Postgres
 (testcontainers).
 
-**Consequences.** Lands with the first feature that keeps data; `make generate` and `gen-check`
-cover sqlc's output too.
+**Consequences.** `make generate` runs sqlc; `gen-check` fails when its output isn't the queries'
+(`sqlc diff`); the after-edit hook runs sqlc on a `.sql` file, so a wrong column is found at the edit.
+`uuid` and `timestamptz` are generated as `string` and `time.Time` (`sqlc.yaml`). A feature's
+queries are a block in `sqlc.yaml`, copied from session's.
 
 **Revisit if.** sqlc can't express a query the service needs often.

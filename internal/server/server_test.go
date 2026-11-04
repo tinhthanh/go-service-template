@@ -2,30 +2,22 @@ package server_test
 
 import (
 	"encoding/json"
-	"io"
-	"log/slog"
 	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tinhthanh/go-service-template/internal/platform/config"
 	"github.com/tinhthanh/go-service-template/internal/platform/contracttest"
-	"github.com/tinhthanh/go-service-template/internal/server"
+	"github.com/tinhthanh/go-service-template/internal/server/servertest"
 )
 
-const _origin = "https://app.example.test"
+const _origin = "https://app.acme.test"
 
 func client(t *testing.T) *contracttest.Client {
 	t.Helper()
 
-	cfg := &config.Config{APIPrefix: "/api", CORSOrigins: []string{_origin}}
-
-	h, err := server.New(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	require.NoError(t, err)
-
-	return contracttest.New(t, h, "/api")
+	return servertest.New(t).Client
 }
 
 func code(t *testing.T, a contracttest.Answer) string {
@@ -49,7 +41,6 @@ func TestServer_AnOperationNotBuiltSaysSoInTheContractsWords(t *testing.T) {
 		{http.MethodGet, "/projects", ""},
 		{http.MethodGet, "/projects/p-1", ""},
 		{http.MethodPost, "/projects", `{"name": "Shop", "description": "A new shop"}`},
-		{http.MethodGet, "/session", ""},
 	} {
 		a := c.Do(call.method, call.path, call.body, nil)
 

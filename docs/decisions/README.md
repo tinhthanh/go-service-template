@@ -13,3 +13,5 @@ follows, and when to revisit it. A new one takes the next number; one replaced s
 | [0006](0006-ci-is-make-verify.md) | CI is make verify |
 | [0007](0007-hooks-for-agents.md) | Checks at the edit and at the stop, for agents |
 | [0008](0008-sqlc-for-stores.md) | Stores in SQL with sqlc, on pgx |
+| [0009](0009-sessions-kept-on-the-server.md) | Sessions are kept on the server, a cookie holds their token |
+| [0010](0010-a-database-per-test.md) | A real Postgres for stores, a database per test, the rest in memory |
