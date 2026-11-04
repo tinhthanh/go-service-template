@@ -18,5 +18,6 @@ description: Measure how well this template guides an agent that has never seen 
    - no rule bent: no `//nolint` without a reason, no check loosened, no `t.Skip`, no edit to
      generated code or the contract;
    - the `reviewer` agent (`.claude/agents/reviewer.md`) on its diff.
-4. **Write it down**: what it got wrong, and for each, what in the template would have prevented it
-   (a check, a line in a skill, a better error message). Fix the template, not the trial's code.
+4. **Write it down** in `docs/trials.md`: the score, what it got wrong, and for each, what in the
+   template would have prevented it (a check, a line in a skill, a better error message). Fix the
+   template, not the trial's code. A subagent doesn't fire the repository's hooks: say so.

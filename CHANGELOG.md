@@ -4,6 +4,8 @@ What a client of the service would notice, newest first.
 
 ## Unreleased
 
+- A request whose value none of a field's `anyOf` takes (a day that isn't one) names that `field`.
+- A projects `cursor` past what a page can start at begins at the top instead of a 500.
 - `GET /api/workspaces` is the caller's workspaces; `POST /api/workspaces` makes one they belong to
   at once, its id made from its name (`w-acme-labs`).
 - Projects: a page of the caller's that match (`workspace`, `q`, `status`, `tags`, `sort`,

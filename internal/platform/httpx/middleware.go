@@ -1,6 +1,7 @@
 // Package httpx is the middleware every request goes through, on plain
 // net/http: a request id, a log line, recovery from a panic, security
-// headers and CORS for the client's origins. Nothing here knows a feature.
+// headers, CORS for the client's origins, and the fields a PATCH sends as
+// null (Nulls). Nothing here knows a feature.
 package httpx
 
 import (

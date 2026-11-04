@@ -102,6 +102,17 @@ func TestProjects_FilterSortAndPageAsTheClientAsks(t *testing.T) {
 	assert.Equal(t, []string{"Shop"}, names(list(t, s, "?sort=name:asc&limit=2&cursor="+first.Next, me)))
 }
 
+func TestProjects_ACursorThatIsntOneStartsAtTheTop(t *testing.T) {
+	t.Parallel()
+
+	s := acme(t)
+	me := s.As(servertest.Member)
+
+	for _, cursor := range []string{"abc", "-1", "99999999999"} {
+		assert.Equal(t, []string{"Atlas", "Blog"}, names(list(t, s, "?sort=name:asc&limit=2&cursor="+cursor, me)), cursor)
+	}
+}
+
 func TestProjects_APageOfMoreThanTheMostIsRefused(t *testing.T) {
 	t.Parallel()
 

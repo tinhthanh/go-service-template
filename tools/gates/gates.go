@@ -38,7 +38,8 @@ func isTest(f string) bool { return strings.HasSuffix(f, "_test.go") }
 // guarded is a file of the checks themselves: changing it needs the guardrail-change label.
 func guarded(f string) bool {
 	for _, p := range []string{
-		`^\.golangci\.yml$`, `^Makefile$`, `^sqlc\.yaml$`, `^api/oapi-codegen\.yaml$`,
+		// sqlc.yaml is not here: it lists each feature's queries, and every new feature adds to it.
+		`^\.golangci\.yml$`, `^Makefile$`, `^api/oapi-codegen\.yaml$`,
 		`^\.github/`, `^\.githooks/`, `^\.claude/`, `^AGENTS\.md$`, `^CLAUDE\.md$`,
 		`^tools/(gates|hooks|stubgen)/`, `^internal/archtest/`, `^internal/platform/(contracttest|dbtest)/`,
 	} {

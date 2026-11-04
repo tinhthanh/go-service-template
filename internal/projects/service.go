@@ -302,14 +302,15 @@ func sortOf(s string) (string, bool) {
 	return col, dir == "desc"
 }
 
-// offsetOf reads a cursor (the offset, as the client's lib/pages.ts writes it); one that isn't starts at the top.
+// offsetOf reads a cursor (the offset, as the client's lib/pages.ts writes it); one that isn't, or
+// one past what a query's OFFSET takes (int32), starts at the top.
 func offsetOf(cursor string) int {
-	n, err := strconv.Atoi(cursor)
+	n, err := strconv.ParseInt(cursor, 10, 32)
 	if err != nil || n < 0 {
 		return 0
 	}
 
-	return n
+	return int(n)
 }
 
 // tagsOf reads "a,b": every tag a project must wear.

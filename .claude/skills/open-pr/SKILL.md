@@ -21,10 +21,12 @@ CI runs `make verify` and two gates that read the pull request (`tools/gates`): 
 5. **Guardrails**: a change to the checks (the list in `tools/gates/gates.go`, `guarded`) says what
    and why under Guardrail changes and carries the `guardrail-change` label. Never loosen a check
    to get a change through.
-6. **The gates, as CI will run them**:
+6. **The gates, as CI will run them**, on what is committed (commit first: they diff
+   `origin/main...HEAD`, as CI diffs the pull request's base):
    ```sh
    PR_TITLE="feat: …" PR_BODY="$(cat pr.md)" PR_LABELS="" make gates
    ```
+   On a branch made from another branch, `BASE_SHA=<that branch>` reads only your commits.
 7. **Open it**, on a branch, never `main`:
    ```sh
    git push -u origin <branch>                  # pre-push runs make check

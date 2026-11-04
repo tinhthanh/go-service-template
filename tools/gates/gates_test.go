@@ -94,6 +94,7 @@ func TestGuardrails_TheChecksChangeOnlyWithTheLabel(t *testing.T) {
 	}
 
 	assert.Empty(t, guardrails(&PR{Changed: []string{".github/workflows/ci.yml"}, Bot: true}), "dependabot bumps an action")
+	assert.Empty(t, guardrails(&PR{Changed: []string{"sqlc.yaml"}}), "a new feature's queries are no change to the checks")
 	assert.NotEmpty(t, guardrails(&PR{Changed: []string{".golangci.yml"}, Bot: true}))
 }
 
