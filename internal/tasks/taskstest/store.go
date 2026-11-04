@@ -212,3 +212,11 @@ func (s *Store) read(ctx context.Context, t *tasks.Task) tasks.Task {
 func (s *Store) index(id string) int {
 	return slices.IndexFunc(s.rows, func(t tasks.Task) bool { return t.ID == id })
 }
+
+// All is every task kept, for a test's other stores (search) to read.
+func (s *Store) All() []tasks.Task {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return slices.Clone(s.rows)
+}

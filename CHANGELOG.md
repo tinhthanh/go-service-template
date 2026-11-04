@@ -4,6 +4,10 @@ What a client of the service would notice, newest first.
 
 ## Unreleased
 
+- `GET /api/search?q=` finds the caller's projects and tasks, each kind ranked on its own and at most
+  five of each, as the client's palette ranks them: the name itself, one that starts with the
+  letters, one with a word that does, one that has them, then a match in the rest. A project's
+  detail is its owner, a task's its project's name.
 - Tasks: a page of the caller's that match (`workspace`, `q` in the title or the project's name,
   `status`, `project`, `hideDone`, `sort` by `title`, `due` or `updated`, `cursor`, `limit`) with the
   total of every match and `summary.late` (past their day, in UTC, and not done); one, with its
