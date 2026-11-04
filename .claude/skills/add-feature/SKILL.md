@@ -5,7 +5,7 @@ description: Add a feature package (internal/<feature>/) that answers operations
 
 # Add a feature
 
-`internal/projects/` is the example to copy: a list (`Page`), one record, writes by role, a scope
+`internal/projects/` (and `internal/tasks/`, with a project it names and a count of the late) is the example to copy: a list (`Page`), one record, writes by role, a scope
 by workspace. Read it before you write. The compiler, `internal/archtest` and `make check` refuse a
 half-wired feature; nothing refuses a missing test, so the tests below are the checklist's end.
 
@@ -27,7 +27,9 @@ half-wired feature; nothing refuses a missing test, so the tests below are the c
    interface is declared here, small. Each method asks who is calling (`auth.Required`; what their
    role may do is the contract's `x-permission`, checked before the method runs, so a new action
    is the client's to add to `x-roles` first), scopes to `p.Belongs(workspace)` (another's is `problem.ErrNotFound`),
-   and refuses a value with `problem.Invalid(field, "words for a person")`. Errors wrapped with
+   and refuses a value with `problem.Invalid(field, "words for a person")`. A list takes its
+   scope from `p.Scope(asked)` and its page from `platform/page` (`Offset`, `Limit`, `Next`):
+   never a page size or a cursor of its own. Errors wrapped with
    `fmt.Errorf("<feature>: <step>: %w", err)`.
 5. **Store** (`store.go`): `PGStore` over the generated queries; `pgx.ErrNoRows` is `problem.ErrNotFound`.
    **Store in memory** (`<feature>test/store.go`): the same interface, filtering and sorting as the SQL does.

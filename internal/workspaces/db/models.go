@@ -6,6 +6,8 @@ package db
 
 import (
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Membership struct {
@@ -32,6 +34,17 @@ type Session struct {
 	EndsAt        time.Time
 	RefreshEndsAt time.Time
 	CreatedAt     time.Time
+}
+
+type Task struct {
+	ID          string
+	WorkspaceID string
+	Title       string
+	Status      string
+	Due         pgtype.Date
+	ProjectID   *string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 type User struct {

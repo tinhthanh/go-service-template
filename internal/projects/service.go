@@ -9,19 +9,12 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/tinhthanh/go-service-template/internal/platform/auth"
+	"github.com/tinhthanh/go-service-template/internal/platform/page"
 	"github.com/tinhthanh/go-service-template/internal/platform/problem"
-)
-
-const (
-	// PageSize is a page's rows unless the client asks for another, as its lib/pages.ts does.
-	PageSize = 50
-	// MaxPage is the most a page may hold: more is refused, never cut short silently.
-	MaxPage = 200
 )
 
 // Project -.
@@ -92,20 +85,17 @@ func (s *Service) List(ctx context.Context, a *Ask) (Page, error) {
 		return Page{}, err
 	}
 
-	scope, err := workspaces(p, a.Workspace)
+	scope, err := p.Scope(a.Workspace)
 	if err != nil {
 		return Page{}, err
 	}
 
-	q := Query{Workspaces: scope, Q: strings.TrimSpace(a.Q), Status: a.Status, Tags: tagsOf(a.Tags), Limit: PageSize}
+	q := Query{Workspaces: scope, Q: strings.TrimSpace(a.Q), Status: a.Status, Tags: tagsOf(a.Tags)}
 	q.Sort, q.Descending = sortOf(a.Sort)
-	q.Offset = offsetOf(a.Cursor)
+	q.Offset = page.Offset(a.Cursor)
 
-	switch {
-	case a.Limit > MaxPage:
-		return Page{}, problem.Invalid("limit", fmt.Sprintf("A page holds at most %d.", MaxPage))
-	case a.Limit > 0:
-		q.Limit = a.Limit
+	if q.Limit, err = page.Limit(a.Limit); err != nil {
+		return Page{}, err
 	}
 
 	items, total, err := s.store.List(ctx, &q)
@@ -113,12 +103,7 @@ func (s *Service) List(ctx context.Context, a *Ask) (Page, error) {
 		return Page{}, fmt.Errorf("projects: list: %w", err)
 	}
 
-	page := Page{Items: items, Total: total}
-	if end := q.Offset + len(items); end < total {
-		page.Next = strconv.Itoa(end)
-	}
-
-	return page, nil
+	return Page{Items: items, Total: total, Next: page.Next(q.Offset, len(items), total)}, nil
 }
 
 // Get is one of the caller's projects.
@@ -235,7 +220,7 @@ func (s *Service) Tags(ctx context.Context, workspace string) ([]string, error) 
 		return nil, err
 	}
 
-	scope, err := workspaces(p, workspace)
+	scope, err := p.Scope(workspace)
 	if err != nil {
 		return nil, err
 	}
@@ -280,19 +265,6 @@ func (s *Service) nameFree(ctx context.Context, p *Project) error {
 	return nil
 }
 
-// workspaces is the scope of a read: the caller's, or the one asked when it is theirs.
-func workspaces(p *auth.Principal, asked string) ([]string, error) {
-	if asked == "" {
-		return p.Workspaces, nil
-	}
-
-	if !p.Belongs(asked) {
-		return nil, problem.ErrNotFound
-	}
-
-	return []string{asked}, nil
-}
-
 // sortOf reads "name:desc"; a column the list doesn't sort by leaves the store's order.
 func sortOf(s string) (string, bool) {
 	col, dir, _ := strings.Cut(s, ":")
@@ -301,17 +273,6 @@ func sortOf(s string) (string, bool) {
 	}
 
 	return col, dir == "desc"
-}
-
-// offsetOf reads a cursor (the offset, as the client's lib/pages.ts writes it); one that isn't, or
-// one past what a query's OFFSET takes (int32), starts at the top.
-func offsetOf(cursor string) int {
-	n, err := strconv.ParseInt(cursor, 10, 32)
-	if err != nil || n < 0 {
-		return 0
-	}
-
-	return int(n)
 }
 
 // tagsOf reads "a,b": every tag a project must wear.

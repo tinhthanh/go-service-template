@@ -5,13 +5,16 @@ package projects_test
 import (
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/tinhthanh/go-service-template/internal/platform/dbtest"
+	pages "github.com/tinhthanh/go-service-template/internal/platform/page"
 	"github.com/tinhthanh/go-service-template/internal/platform/problem"
 	"github.com/tinhthanh/go-service-template/internal/projects"
 )
@@ -68,7 +71,7 @@ func listed(t *testing.T, s *projects.PGStore, q projects.Query) ([]string, int)
 	}
 
 	if q.Limit == 0 {
-		q.Limit = projects.PageSize
+		q.Limit = pages.Size
 	}
 
 	items, total, err := s.List(t.Context(), &q)
@@ -218,7 +221,13 @@ func TestPGStore_AProjectIsFoundByItsKeysIndex(t *testing.T) {
 
 	query := regexp.MustCompile(`@id(::\w+)?`).ReplaceAllString(string(m[1]), "$$1")
 
-	var plan string
-	require.NoError(t, tx.QueryRow(t.Context(), "EXPLAIN "+query, ids["Shop"]).Scan(&plan))
+	// The whole plan: a join's first line is the join, its index scan below.
+	rows, err := tx.Query(t.Context(), "EXPLAIN "+query, ids["Shop"])
+	require.NoError(t, err)
+
+	lines, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	require.NoError(t, err)
+
+	plan := strings.Join(lines, "\n")
 	assert.Contains(t, plan, "projects_pkey", query)
 }

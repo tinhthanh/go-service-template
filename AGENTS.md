@@ -80,9 +80,11 @@ tools/                  stubgen (the 501 stubs), hooks (Claude Code's)
 ## Lists
 
 A list the client reads a page at a time answers the contract's `Page`: `items`, `total` (every
-match, worked out by the store, never the page's length), and `next` while more are left. The
-cursor is the offset as a string, as the client's `lib/pages.ts` writes it; one that isn't starts at
-the top. A page is 50 unless asked; more than 200 is 422 on `limit`. Filters and sort are one static
+match, worked out by the store, never the page's length), and `next` while more are left.
+`platform/page` cuts it for every list: `page.Offset(cursor)` (the offset as a string, as the
+client's `lib/pages.ts` writes it; one that isn't starts at the top), `page.Limit(asked)` (50
+unless asked; more than 200 is 422 on `limit`) and `page.Next(offset, n, total)`. What a read
+covers is `p.Scope(asked)`: the caller's workspaces, or the one asked when it is theirs. Filters and sort are one static
 query in `queries.sql` (optional filters, `CASE` per sort column), so sqlc checks all of it; words a
 person typed are matched with `strpos`, never `LIKE`, so they are never a pattern.
 
