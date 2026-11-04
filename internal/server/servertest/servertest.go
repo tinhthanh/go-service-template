@@ -18,9 +18,13 @@ import (
 	"github.com/tinhthanh/go-service-template/internal/platform/auth"
 	"github.com/tinhthanh/go-service-template/internal/platform/config"
 	"github.com/tinhthanh/go-service-template/internal/platform/contracttest"
+	"github.com/tinhthanh/go-service-template/internal/projects"
+	"github.com/tinhthanh/go-service-template/internal/projects/projectstest"
 	"github.com/tinhthanh/go-service-template/internal/server"
 	"github.com/tinhthanh/go-service-template/internal/session"
 	"github.com/tinhthanh/go-service-template/internal/session/sessiontest"
+	"github.com/tinhthanh/go-service-template/internal/workspaces"
+	"github.com/tinhthanh/go-service-template/internal/workspaces/workspacestest"
 )
 
 // Prefix is where the test server mounts the contract.
@@ -37,10 +41,20 @@ const (
 // Server is the server and what a test reaches into.
 type Server struct {
 	*contracttest.Client
-	Sessions *sessiontest.Store
-	clock    *Clock
-	t        *testing.T
+	Sessions   *sessiontest.Store
+	Workspaces *workspacestest.Store
+	Projects   *projectstest.Store
+	clock      *Clock
+	t          *testing.T
 }
+
+// The workspaces every test server has: the three people are in Acme;
+// Initrode is somebody else's, with Vault in it.
+const (
+	Acme     = "w-acme"
+	Initrode = "w-initrode"
+	Vault    = "p-vault"
+)
 
 // Clock is the server's time, which a test moves.
 type Clock struct {
@@ -68,6 +82,7 @@ func (c *Clock) Advance(d time.Duration) {
 var Lengths = session.Lengths{Session: time.Hour, Refresh: 24 * time.Hour} //nolint:gochecknoglobals // a fixed setting tests read
 
 // New is a server with an owner, a member and a viewer of workspace w-acme.
+// As signs a call in as one of them: s.Do(…, s.As(servertest.Member)).
 func New(t *testing.T) *Server {
 	t.Helper()
 
@@ -85,15 +100,24 @@ func New(t *testing.T) *Server {
 	sessions, err := session.New(store, Lengths, clock.Now)
 	require.NoError(t, err)
 
+	ws := workspacestest.New(store.Join)
+	ws.Add(workspaces.Workspace{ID: Acme, Name: "Acme"}, Owner, Member, Viewer)
+	ws.Add(workspaces.Workspace{ID: Initrode, Name: "Initrode"})
+
+	prs := projectstest.New(clock.Now)
+	prs.Add(&projects.Project{ID: Vault, Workspace: Initrode, Name: "Vault", Description: "Kept by another team.", Owner: "Kim", UpdatedAt: clock.Now()})
+
 	cfg := &config.Config{APIPrefix: Prefix, CORSOrigins: []string{"https://app.acme.test"}, CookieSecure: true}
 
 	h, err := server.New(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), server.Features{
-		Auth:    sessions,
-		Session: session.NewHandler(sessions, session.Cookies{Secure: true, RefreshPath: Prefix + "/session/refresh"}),
+		Auth:       sessions,
+		Session:    session.NewHandler(sessions, session.Cookies{Secure: true, RefreshPath: Prefix + "/session/refresh"}),
+		Workspaces: workspaces.NewHandler(workspaces.New(ws)),
+		Projects:   projects.NewHandler(projects.New(prs)),
 	})
 	require.NoError(t, err)
 
-	return &Server{Client: contracttest.New(t, h, Prefix), Sessions: store, clock: clock, t: t}
+	return &Server{Client: contracttest.New(t, h, Prefix), Sessions: store, Workspaces: ws, Projects: prs, clock: clock, t: t}
 }
 
 // Clock is the server's clock.
@@ -117,4 +141,13 @@ func CookieHeader(cookies []*http.Cookie) string {
 	}
 
 	return strings.Join(parts, "; ")
+}
+
+// As is the headers of a call by the person (Owner, Member, Viewer): their session's cookie.
+func (s *Server) As(who string) map[string]string {
+	s.t.Helper()
+
+	email := map[string]string{Owner: "owner@acme.test", Member: "member@acme.test", Viewer: "viewer@acme.test"}[who]
+
+	return map[string]string{"Cookie": s.SignIn(email)}
 }

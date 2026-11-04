@@ -13,6 +13,18 @@ type Membership struct {
 	WorkspaceID string
 }
 
+type Project struct {
+	ID          string
+	WorkspaceID string
+	Name        string
+	Description string
+	Status      string
+	Owner       string
+	Tags        []string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
 type Session struct {
 	TokenHash     []byte
 	RefreshHash   []byte

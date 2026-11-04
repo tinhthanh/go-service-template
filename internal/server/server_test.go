@@ -38,9 +38,9 @@ func TestServer_AnOperationNotBuiltSaysSoInTheContractsWords(t *testing.T) {
 	c := client(t)
 
 	for _, call := range []struct{ method, path, body string }{
-		{http.MethodGet, "/projects", ""},
-		{http.MethodGet, "/projects/p-1", ""},
-		{http.MethodPost, "/projects", `{"name": "Shop", "description": "A new shop"}`},
+		{http.MethodGet, "/tasks", ""},
+		{http.MethodGet, "/tasks/t-1", ""},
+		{http.MethodDelete, "/tasks/t-1", ""},
 	} {
 		a := c.Do(call.method, call.path, call.body, nil)
 
@@ -76,10 +76,10 @@ func TestServer_EveryAnswerCarriesARequestIDAndSecurityHeaders(t *testing.T) {
 
 	c := client(t)
 
-	given := c.Do(http.MethodGet, "/projects", "", map[string]string{"X-Request-ID": "abc123"})
+	given := c.Do(http.MethodGet, "/tasks", "", map[string]string{"X-Request-ID": "abc123"})
 	assert.Equal(t, "abc123", given.Header.Get("X-Request-ID"), "the caller's id is kept")
 
-	made := c.Do(http.MethodGet, "/projects", "", nil)
+	made := c.Do(http.MethodGet, "/tasks", "", nil)
 	assert.Len(t, made.Header.Get("X-Request-ID"), 16)
 	assert.Equal(t, "nosniff", made.Header.Get("X-Content-Type-Options"))
 	assert.Equal(t, "no-store", made.Header.Get("Cache-Control"))
@@ -90,10 +90,10 @@ func TestServer_OnlyTheClientsOriginMayCallWithItsCookies(t *testing.T) {
 
 	c := client(t)
 
-	ours := c.Do(http.MethodGet, "/projects", "", map[string]string{"Origin": _origin})
+	ours := c.Do(http.MethodGet, "/tasks", "", map[string]string{"Origin": _origin})
 	assert.Equal(t, _origin, ours.Header.Get("Access-Control-Allow-Origin"))
 	assert.Equal(t, "true", ours.Header.Get("Access-Control-Allow-Credentials"))
 
-	other := c.Do(http.MethodGet, "/projects", "", map[string]string{"Origin": "https://elsewhere.test"})
+	other := c.Do(http.MethodGet, "/tasks", "", map[string]string{"Origin": "https://elsewhere.test"})
 	assert.Empty(t, other.Header.Get("Access-Control-Allow-Origin"))
 }

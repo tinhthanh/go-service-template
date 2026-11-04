@@ -34,7 +34,8 @@ internal/server/        puts it together: features' handlers, contract validatio
 internal/platform/      what every feature uses and no feature owns: config, httpx, problem, auth, db,
                         logging, and for tests contracttest and dbtest
 internal/<feature>/     one package per feature: handler.go, service.go, store.go, queries.sql, db/ (sqlc),
-                        <feature>test/ (its store in memory), and their tests. session is the example
+                        <feature>test/ (its store in memory), and their tests. projects is the example
+                        of a list (filters, sort, a Page); session of cookies; workspaces of a transaction
 internal/server/servertest/  the real server on stores in memory, for a feature's HTTP tests
 migrations/             the schema, golang-migrate pairs (NNNN_name.up.sql/.down.sql), embedded
 internal/archtest/      the architecture's rules, as a test
@@ -60,13 +61,22 @@ tools/                  stubgen (the 501 stubs), hooks (Claude Code's)
 
 - The session is a cookie (httpOnly, Secure, SameSite=Lax) holding a random token; the database
   keeps only its hash, so sign-out ends it. `platform/auth` puts the caller on the context.
-- An operation that needs someone starts with `auth.Required(ctx)`, or `auth.Allowed(ctx, "project.create")`
+- A feature's service, not its handler, asks who is calling: `auth.Required(ctx)`, or `auth.Allowed(ctx, "project.create")`
   for an action of the role table (`platform/auth/permissions.go`, the same as the client's
   `lib/permissions.ts`: a new action goes in both). A record of a workspace the caller isn't in is
   `problem.ErrNotFound`, as if it weren't there (`p.Belongs(workspace)`).
 - Every write carries `X-Requested-With: XMLHttpRequest` (CSRF); the client sends it.
 - A refusal of a value the rules don't allow is `problem.Invalid(field, words)` (422, as the client's
   mock answers); a request the contract refuses is 400 before the handler runs.
+
+## Lists
+
+A list the client reads a page at a time answers the contract's `Page`: `items`, `total` (every
+match, worked out by the store, never the page's length), and `next` while more are left. The
+cursor is the offset as a string, as the client's `lib/pages.ts` writes it; one that isn't starts at
+the top. A page is 50 unless asked; more than 200 is 422 on `limit`. Filters and sort are one static
+query in `queries.sql` (optional filters, `CASE` per sort column), so sqlc checks all of it; words a
+person typed are matched with `strpos`, never `LIKE`, so they are never a pattern.
 
 ## Rules
 

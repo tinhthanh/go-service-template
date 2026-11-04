@@ -56,6 +56,17 @@ func (s *Store) Add(p auth.Principal, password string) {
 	s.people[p.ID] = person{Principal: p, hash: string(hash)}
 }
 
+// Join puts the person in a workspace: their next call carries it, as a membership in Postgres would.
+func (s *Store) Join(userID, workspace string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	p := s.people[userID]
+	p.Workspaces = append(p.Workspaces, workspace)
+	slices.Sort(p.Workspaces)
+	s.people[userID] = p
+}
+
 // Sessions is how many sessions are kept.
 func (s *Store) Sessions() int {
 	s.mu.Lock()
