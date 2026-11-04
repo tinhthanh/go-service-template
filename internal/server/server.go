@@ -23,6 +23,7 @@ import (
 	"github.com/tinhthanh/go-service-template/internal/platform/problem"
 	"github.com/tinhthanh/go-service-template/internal/projects"
 	"github.com/tinhthanh/go-service-template/internal/session"
+	"github.com/tinhthanh/go-service-template/internal/tasks"
 	"github.com/tinhthanh/go-service-template/internal/workspaces"
 )
 
@@ -34,6 +35,7 @@ type operations struct {
 	*sessionOps
 	*workspaceOps
 	*projectOps
+	*taskOps
 	stubs
 }
 
@@ -42,6 +44,7 @@ type (
 	sessionOps   = session.Handler
 	workspaceOps = workspaces.Handler
 	projectOps   = projects.Handler
+	taskOps      = tasks.Handler
 )
 
 type stubs struct{ api.Unimplemented }
@@ -54,6 +57,7 @@ type Features struct {
 	Session    *session.Handler
 	Workspaces *workspaces.Handler
 	Projects   *projects.Handler
+	Tasks      *tasks.Handler
 }
 
 // New is the service's handler.
@@ -66,7 +70,7 @@ func New(cfg *config.Config, log *slog.Logger, f Features) (http.Handler, error)
 	// The router matches paths without the prefix; the validator does too.
 	spec.Servers = nil
 
-	ops := &operations{sessionOps: f.Session, workspaceOps: f.Workspaces, projectOps: f.Projects}
+	ops := &operations{sessionOps: f.Session, workspaceOps: f.Workspaces, projectOps: f.Projects, taskOps: f.Tasks}
 
 	// What each operation needs, and who may: the contract's x-permission and x-roles.
 	rules, err := auth.RulesOf(spec)

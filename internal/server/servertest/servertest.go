@@ -5,6 +5,7 @@
 package servertest
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"net/http"
@@ -23,6 +24,8 @@ import (
 	"github.com/tinhthanh/go-service-template/internal/server"
 	"github.com/tinhthanh/go-service-template/internal/session"
 	"github.com/tinhthanh/go-service-template/internal/session/sessiontest"
+	"github.com/tinhthanh/go-service-template/internal/tasks"
+	"github.com/tinhthanh/go-service-template/internal/tasks/taskstest"
 	"github.com/tinhthanh/go-service-template/internal/workspaces"
 	"github.com/tinhthanh/go-service-template/internal/workspaces/workspacestest"
 )
@@ -44,16 +47,18 @@ type Server struct {
 	Sessions   *sessiontest.Store
 	Workspaces *workspacestest.Store
 	Projects   *projectstest.Store
+	Tasks      *taskstest.Store
 	clock      *Clock
 	t          *testing.T
 }
 
 // The workspaces every test server has: the three people are in Acme;
-// Initrode is somebody else's, with Vault in it.
+// Initrode is somebody else's, with Vault in it, and Vault's task Safe.
 const (
 	Acme     = "w-acme"
 	Initrode = "w-initrode"
 	Vault    = "p-vault"
+	Safe     = "t-safe"
 )
 
 // Clock is the server's time, which a test moves.
@@ -107,6 +112,14 @@ func New(t *testing.T) *Server {
 	prs := projectstest.New(clock.Now)
 	prs.Add(&projects.Project{ID: Vault, Workspace: Initrode, Name: "Vault", Description: "Kept by another team.", Owner: "Kim", UpdatedAt: clock.Now()})
 
+	// A task's project is read from the projects store, as the tasks queries JOIN projects.
+	tks := taskstest.New(clock.Now, func(ctx context.Context, id string) (string, string, error) {
+		p, err := prs.Get(ctx, id)
+
+		return p.Workspace, p.Name, err
+	})
+	tks.Add(&tasks.Task{ID: Safe, Workspace: Initrode, Title: "Open the safe", Project: Vault, UpdatedAt: clock.Now()})
+
 	cfg := &config.Config{APIPrefix: Prefix, CORSOrigins: []string{"https://app.acme.test"}, CookieSecure: true}
 
 	h, err := server.New(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), server.Features{
@@ -114,10 +127,11 @@ func New(t *testing.T) *Server {
 		Session:    session.NewHandler(sessions, session.Cookies{Secure: true, RefreshPath: Prefix + "/session/refresh"}),
 		Workspaces: workspaces.NewHandler(workspaces.New(ws)),
 		Projects:   projects.NewHandler(projects.New(prs)),
+		Tasks:      tasks.NewHandler(tasks.New(tks, clock.Now)),
 	})
 	require.NoError(t, err)
 
-	return &Server{Client: contracttest.New(t, h, Prefix), Sessions: store, Workspaces: ws, Projects: prs, clock: clock, t: t}
+	return &Server{Client: contracttest.New(t, h, Prefix), Sessions: store, Workspaces: ws, Projects: prs, Tasks: tks, clock: clock, t: t}
 }
 
 // Clock is the server's clock.

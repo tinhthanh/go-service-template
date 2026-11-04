@@ -2,6 +2,7 @@ package server_test
 
 import (
 	"encoding/json"
+	"maps"
 	"net/http"
 	"testing"
 
@@ -38,12 +39,18 @@ func TestServer_AnOperationNotBuiltSaysSoInTheContractsWords(t *testing.T) {
 	s := servertest.New(t)
 	owner := s.As(servertest.Owner)
 
-	for _, call := range []struct{ method, path, body string }{
-		{http.MethodGet, "/tasks", ""},
-		{http.MethodGet, "/tasks/t-1", ""},
-		{http.MethodDelete, "/tasks/t-1", ""},
+	for _, call := range []struct {
+		method, path, body string
+		header             map[string]string
+	}{
+		{http.MethodGet, "/search?q=shop", "", nil},
+		{http.MethodPost, "/files", "a note", map[string]string{"Content-Type": "text/plain", "X-File-Name": "note.txt"}},
 	} {
-		a := s.Do(call.method, call.path, call.body, owner)
+		header := map[string]string{}
+		maps.Copy(header, owner)
+		maps.Copy(header, call.header)
+
+		a := s.Do(call.method, call.path, call.body, header)
 
 		assert.Equal(t, http.StatusNotImplemented, a.Status, "%s %s", call.method, call.path)
 		assert.Equal(t, "unavailable", code(t, a))
@@ -91,6 +98,15 @@ func TestServer_ARequestTheContractRefusesIsInvalidOnItsField(t *testing.T) {
 	day := c.Do(http.MethodPost, "/tasks", `{"title": "X", "due": "tomorrow"}`, nil)
 	assert.Equal(t, http.StatusBadRequest, day.Status)
 	assert.Contains(t, string(day.Body), `"field":"due"`, "a value none of anyOf's schemas takes (a day, or null)")
+
+	needed := c.Do(http.MethodPost, "/tasks", `{"due": null}`, nil)
+	assert.Equal(t, http.StatusBadRequest, needed.Status)
+	assert.JSONEq(t, `{"error": "This is needed.", "code": "invalid", "field": "title"}`, string(needed.Body),
+		"a body with an anyOf in it is checked by kin-openapi's own words")
+
+	unknown := c.Do(http.MethodPost, "/tasks", `{"title": "X", "owner": "me"}`, nil)
+	assert.Equal(t, http.StatusBadRequest, unknown.Status)
+	assert.Contains(t, string(unknown.Body), `"field":"owner"`, "and so is a field it doesn't have")
 
 	status := c.Do(http.MethodGet, "/projects?status=sleeping", "", nil)
 	assert.Equal(t, http.StatusBadRequest, status.Status)

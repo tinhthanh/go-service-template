@@ -8,6 +8,7 @@ import (
 	"github.com/tinhthanh/go-service-template/internal/platform/config"
 	"github.com/tinhthanh/go-service-template/internal/projects"
 	"github.com/tinhthanh/go-service-template/internal/session"
+	"github.com/tinhthanh/go-service-template/internal/tasks"
 	"github.com/tinhthanh/go-service-template/internal/workspaces"
 )
 
@@ -24,5 +25,6 @@ func Wire(cfg *config.Config, pool *pgxpool.Pool) (Features, error) {
 		Session:    session.NewHandler(sessions, session.Cookies{Secure: cfg.CookieSecure, RefreshPath: cfg.APIPrefix + "/session/refresh"}),
 		Workspaces: workspaces.NewHandler(workspaces.New(workspaces.NewPGStore(pool))),
 		Projects:   projects.NewHandler(projects.New(projects.NewPGStore(pool))),
+		Tasks:      tasks.NewHandler(tasks.New(tasks.NewPGStore(pool), time.Now)),
 	}, nil
 }

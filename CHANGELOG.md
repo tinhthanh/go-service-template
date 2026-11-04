@@ -4,6 +4,14 @@ What a client of the service would notice, newest first.
 
 ## Unreleased
 
+- Tasks: a page of the caller's that match (`workspace`, `q` in the title or the project's name,
+  `status`, `project`, `hideDone`, `sort` by `title`, `due` or `updated`, `cursor`, `limit`) with the
+  total of every match and `summary.late` (past their day, in UTC, and not done); one, with its
+  project's name as it is now; making one (to do, in the caller's first workspace unless named);
+  changing one, where `null` takes the due day or the project off; and deleting one. Another
+  workspace's task is 404; a viewer may only read, only an owner deletes; no title is 422 on
+  `title`, a project not of the task's workspace 422 on `project`, and any file 422 on `attachment`
+  (files can't be sent yet).
 - A request with a field the contract doesn't have, or without one it needs, names that `field`
   for a body with an `anyOf` in it too (a task's).
 - What each operation needs is read from the contract's `x-permission` and `x-roles`, and checked
