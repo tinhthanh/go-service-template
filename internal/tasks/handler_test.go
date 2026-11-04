@@ -3,6 +3,7 @@ package tasks_test
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"testing"
 	"time"
@@ -24,6 +25,12 @@ type task struct {
 		ID   string `json:"id"`
 		Name string `json:"name"`
 	} `json:"project"`
+	Attachment *struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+		Size int    `json:"size"`
+		Type string `json:"type"`
+	} `json:"attachment"`
 	Workspace string `json:"workspace"`
 	UpdatedAt string `json:"updatedAt"`
 }
@@ -400,4 +407,70 @@ func TestTasks_EachRoleMayDoWhatTheClientsTableSays(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, s.Do(http.MethodDelete, "/tasks/t-notes", "", owner).Status)
 	assert.Equal(t, http.StatusNotFound, s.Do(http.MethodGet, "/tasks/t-notes", "", owner).Status)
 	assert.Equal(t, http.StatusNotFound, s.Do(http.MethodDelete, "/tasks/t-notes", "", owner).Status, "a task deleted isn't there")
+}
+
+// sent uploads a file as the person, as the client does before it names it on a task.
+func sent(t *testing.T, s *acmeServer, who map[string]string, name string) string {
+	t.Helper()
+
+	header := map[string]string{"X-File-Name": name, "Content-Type": "application/pdf"}
+	maps.Copy(header, who)
+
+	a := s.Do(http.MethodPost, "/files", "%PDF-1.7 a plan", header)
+	require.Equal(t, http.StatusOK, a.Status, string(a.Body))
+
+	return decode(t, a.Body).ID
+}
+
+func TestTask_CarriesTheFileItsMakerSent(t *testing.T) {
+	t.Parallel()
+
+	s := acme(t)
+	me := s.As(servertest.Member)
+	file := sent(t, s, me, "plan.pdf")
+
+	a := s.Do(http.MethodPost, "/tasks", `{"title": "Read the plan", "attachment": "`+file+`"}`, me)
+	require.Equal(t, http.StatusOK, a.Status, string(a.Body))
+
+	made := decode(t, a.Body)
+	require.NotNil(t, made.Attachment)
+	assert.Equal(t, file, made.Attachment.ID)
+	assert.Equal(t, "plan.pdf", made.Attachment.Name)
+	assert.Equal(t, "application/pdf", made.Attachment.Type)
+	assert.Equal(t, len("%PDF-1.7 a plan"), made.Attachment.Size)
+
+	again := decode(t, s.Do(http.MethodGet, "/tasks/"+made.ID, "", s.As(servertest.Viewer)).Body)
+	require.NotNil(t, again.Attachment, "read back by anyone who may read the task")
+	assert.Equal(t, file, again.Attachment.ID)
+}
+
+func TestTask_AFileSomeoneElseSentIsRefusedOnTheField(t *testing.T) {
+	t.Parallel()
+
+	s := acme(t)
+	theirs := sent(t, s, s.As(servertest.Owner), "owner.pdf")
+
+	a := s.Do(http.MethodPost, "/tasks", `{"title": "Take theirs", "attachment": "`+theirs+`"}`, s.As(servertest.Member))
+
+	assert.Equal(t, http.StatusUnprocessableEntity, a.Status)
+	assert.JSONEq(t, `{"error": "That file didn't arrive; add it again.", "code": "invalid", "field": "attachment"}`, string(a.Body))
+}
+
+func TestUpdateTask_NullTakesTheFileOffAndTheSameFileStays(t *testing.T) {
+	t.Parallel()
+
+	s := acme(t)
+	me := s.As(servertest.Member)
+	file := sent(t, s, me, "plan.pdf")
+
+	made := decode(t, s.Do(http.MethodPost, "/tasks", `{"title": "Read the plan", "attachment": "`+file+`"}`, me).Body)
+
+	// The owner changes the title and sends the file the task already has: it stays, though it isn't theirs.
+	kept := s.Do(http.MethodPatch, "/tasks/"+made.ID, `{"title": "Read the whole plan", "attachment": "`+file+`"}`, s.As(servertest.Owner))
+	require.Equal(t, http.StatusOK, kept.Status, string(kept.Body))
+	assert.NotNil(t, decode(t, kept.Body).Attachment)
+
+	off := s.Do(http.MethodPatch, "/tasks/"+made.ID, `{"attachment": null}`, me)
+	require.Equal(t, http.StatusOK, off.Status, string(off.Body))
+	assert.Nil(t, decode(t, off.Body).Attachment)
 }

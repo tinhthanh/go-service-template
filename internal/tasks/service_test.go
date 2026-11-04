@@ -36,7 +36,7 @@ func TestService_LateIsCountedFromTheDayInUTC(t *testing.T) {
 
 			store := taskstest.New(func() time.Time { return c.now }, func(context.Context, string) (string, string, error) {
 				return "", "", problem.ErrNotFound
-			})
+			}, func(string, string) (tasks.Attachment, error) { return tasks.Attachment{}, problem.ErrNotFound })
 			store.Add(&tasks.Task{ID: "t-1", Workspace: "w-acme", Title: "Due the 3rd", Due: on("2026-11-03")})
 
 			ctx := auth.With(t.Context(), &auth.Principal{ID: "u-1", Role: "member", Workspaces: []string{"w-acme"}})

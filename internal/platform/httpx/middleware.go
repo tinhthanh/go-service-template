@@ -103,6 +103,18 @@ func recovered(w http.ResponseWriter, r *http.Request, log *slog.Logger) {
 	}
 }
 
+// MaxBody stops reading a request's body past n bytes: whatever reads on
+// (the contract's validator, a handler) gets an *http.MaxBytesError, which
+// problem.Write answers as a 413.
+func MaxBody(n int64) Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Body = http.MaxBytesReader(w, r.Body, n)
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 // SecurityHeaders are the headers an API answer always carries.
 func SecurityHeaders() Middleware {
 	return func(next http.Handler) http.Handler {

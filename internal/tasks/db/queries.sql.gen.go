@@ -12,6 +12,35 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const attachmentOf = `-- name: AttachmentOf :one
+SELECT id, name, type, size FROM files WHERE id = $1 AND owner_id = $2
+`
+
+type AttachmentOfParams struct {
+	ID      string
+	OwnerID string
+}
+
+type AttachmentOfRow struct {
+	ID   string
+	Name string
+	Type string
+	Size int32
+}
+
+// The file, when its sender is the one asking: a task names only its maker's own.
+func (q *Queries) AttachmentOf(ctx context.Context, arg AttachmentOfParams) (AttachmentOfRow, error) {
+	row := q.db.QueryRow(ctx, attachmentOf, arg.ID, arg.OwnerID)
+	var i AttachmentOfRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Type,
+		&i.Size,
+	)
+	return i, err
+}
+
 const countTasks = `-- name: CountTasks :one
 SELECT count(*)::int AS total,
        (count(*) FILTER (WHERE t.due < $1::date AND t.status <> 'done'))::int AS late
@@ -54,17 +83,18 @@ func (q *Queries) CountTasks(ctx context.Context, arg CountTasksParams) (CountTa
 }
 
 const createTask = `-- name: CreateTask :one
-INSERT INTO tasks (workspace_id, title, status, due, project_id)
-VALUES ($1, $2, $3, $4, NULLIF($5::text, '')::uuid)
+INSERT INTO tasks (workspace_id, title, status, due, project_id, attachment_id)
+VALUES ($1, $2, $3, $4, NULLIF($5::text, '')::uuid, NULLIF($6::text, '')::uuid)
 RETURNING id
 `
 
 type CreateTaskParams struct {
-	WorkspaceID string
-	Title       string
-	Status      string
-	Due         pgtype.Date
-	ProjectID   string
+	WorkspaceID  string
+	Title        string
+	Status       string
+	Due          pgtype.Date
+	ProjectID    string
+	AttachmentID string
 }
 
 func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (string, error) {
@@ -74,6 +104,7 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (string,
 		arg.Status,
 		arg.Due,
 		arg.ProjectID,
+		arg.AttachmentID,
 	)
 	var id string
 	err := row.Scan(&id)
@@ -92,9 +123,12 @@ func (q *Queries) DeleteTask(ctx context.Context, id string) error {
 const listTasks = `-- name: ListTasks :many
 
 SELECT t.id, t.workspace_id, t.title, t.status, t.due, t.updated_at,
-       coalesce(p.id::text, '')::text AS project_id, coalesce(p.name, '')::text AS project_name
+       coalesce(p.id::text, '')::text AS project_id, coalesce(p.name, '')::text AS project_name,
+       coalesce(f.id::text, '')::text AS attachment_id, coalesce(f.name, '')::text AS attachment_name,
+       coalesce(f.type, '')::text AS attachment_type, coalesce(f.size, 0)::int AS attachment_size
 FROM tasks t
 LEFT JOIN projects p ON p.id = t.project_id
+LEFT JOIN files f ON f.id = t.attachment_id
 WHERE t.workspace_id = ANY ($1::text[])
   AND ($2::text = '' OR strpos(lower(t.title || ' ' || coalesce(p.name, '')), lower($2)) > 0)
   AND ($3::text = '' OR t.status = $3)
@@ -124,18 +158,22 @@ type ListTasksParams struct {
 }
 
 type ListTasksRow struct {
-	ID          string
-	WorkspaceID string
-	Title       string
-	Status      string
-	Due         pgtype.Date
-	UpdatedAt   time.Time
-	ProjectID   string
-	ProjectName string
+	ID             string
+	WorkspaceID    string
+	Title          string
+	Status         string
+	Due            pgtype.Date
+	UpdatedAt      time.Time
+	ProjectID      string
+	ProjectName    string
+	AttachmentID   string
+	AttachmentName string
+	AttachmentType string
+	AttachmentSize int32
 }
 
-// A task is read with its project's name (projects is read to show it,
-// never written). The filters a list takes, the same in ListTasks and
+// A task is read with its project's name and its file's (projects and files
+// are read to show them and to check them, never written). The filters a list takes, the same in ListTasks and
 // CountTasks: the person's workspaces (or the one asked), words in the
 // title or the project's name (strpos: what was typed is never a pattern),
 // a status, the done ones left out, and a project.
@@ -167,6 +205,10 @@ func (q *Queries) ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTas
 			&i.UpdatedAt,
 			&i.ProjectID,
 			&i.ProjectName,
+			&i.AttachmentID,
+			&i.AttachmentName,
+			&i.AttachmentType,
+			&i.AttachmentSize,
 		); err != nil {
 			return nil, err
 		}
@@ -196,21 +238,28 @@ func (q *Queries) ProjectName(ctx context.Context, arg ProjectNameParams) (strin
 
 const task = `-- name: Task :one
 SELECT t.id, t.workspace_id, t.title, t.status, t.due, t.updated_at,
-       coalesce(p.id::text, '')::text AS project_id, coalesce(p.name, '')::text AS project_name
+       coalesce(p.id::text, '')::text AS project_id, coalesce(p.name, '')::text AS project_name,
+       coalesce(f.id::text, '')::text AS attachment_id, coalesce(f.name, '')::text AS attachment_name,
+       coalesce(f.type, '')::text AS attachment_type, coalesce(f.size, 0)::int AS attachment_size
 FROM tasks t
 LEFT JOIN projects p ON p.id = t.project_id
+LEFT JOIN files f ON f.id = t.attachment_id
 WHERE t.id = $1
 `
 
 type TaskRow struct {
-	ID          string
-	WorkspaceID string
-	Title       string
-	Status      string
-	Due         pgtype.Date
-	UpdatedAt   time.Time
-	ProjectID   string
-	ProjectName string
+	ID             string
+	WorkspaceID    string
+	Title          string
+	Status         string
+	Due            pgtype.Date
+	UpdatedAt      time.Time
+	ProjectID      string
+	ProjectName    string
+	AttachmentID   string
+	AttachmentName string
+	AttachmentType string
+	AttachmentSize int32
 }
 
 func (q *Queries) Task(ctx context.Context, id string) (TaskRow, error) {
@@ -225,23 +274,29 @@ func (q *Queries) Task(ctx context.Context, id string) (TaskRow, error) {
 		&i.UpdatedAt,
 		&i.ProjectID,
 		&i.ProjectName,
+		&i.AttachmentID,
+		&i.AttachmentName,
+		&i.AttachmentType,
+		&i.AttachmentSize,
 	)
 	return i, err
 }
 
 const updateTask = `-- name: UpdateTask :one
 UPDATE tasks
-SET title = $1, status = $2, due = $3, project_id = NULLIF($4::text, '')::uuid, updated_at = now()
-WHERE id = $5
+SET title = $1, status = $2, due = $3, project_id = NULLIF($4::text, '')::uuid,
+    attachment_id = NULLIF($5::text, '')::uuid, updated_at = now()
+WHERE id = $6
 RETURNING id
 `
 
 type UpdateTaskParams struct {
-	Title     string
-	Status    string
-	Due       pgtype.Date
-	ProjectID string
-	ID        string
+	Title        string
+	Status       string
+	Due          pgtype.Date
+	ProjectID    string
+	AttachmentID string
+	ID           string
 }
 
 func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (string, error) {
@@ -250,6 +305,7 @@ func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (string,
 		arg.Status,
 		arg.Due,
 		arg.ProjectID,
+		arg.AttachmentID,
 		arg.ID,
 	)
 	var id string
