@@ -3,6 +3,8 @@
 package projects_test
 
 import (
+	"os"
+	"regexp"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -190,4 +192,33 @@ func TestPGStore_DeleteRemovesTheProject(t *testing.T) {
 
 	_, err := s.Get(t.Context(), ids["Blog"])
 	require.ErrorIs(t, err, problem.ErrNotFound)
+}
+
+// A project is found by its primary key's index, so a read by id stays quick as the table grows:
+// the queries compare ids as UUIDs, never as text.
+func TestPGStore_AProjectIsFoundByItsKeysIndex(t *testing.T) {
+	t.Parallel()
+
+	pool, _, ids := acmeDB(t)
+
+	tx, err := pool.Begin(t.Context())
+	require.NoError(t, err)
+
+	defer func() { _ = tx.Rollback(t.Context()) }()
+
+	_, err = tx.Exec(t.Context(), "SET LOCAL enable_seqscan = off")
+	require.NoError(t, err)
+
+	// The store's own query, as queries.sql writes it, not one written here.
+	src, err := os.ReadFile("queries.sql")
+	require.NoError(t, err)
+
+	m := regexp.MustCompile(`(?s)-- name: Project :one\n(.*?);`).FindSubmatch(src)
+	require.NotNil(t, m, "queries.sql has the Project query")
+
+	query := regexp.MustCompile(`@id(::\w+)?`).ReplaceAllString(string(m[1]), "$$1")
+
+	var plan string
+	require.NoError(t, tx.QueryRow(t.Context(), "EXPLAIN "+query, ids["Shop"]).Scan(&plan))
+	assert.Contains(t, plan, "projects_pkey", query)
 }

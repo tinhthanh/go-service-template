@@ -127,8 +127,9 @@ func permitted(rules *auth.Rules) api.StrictMiddlewareFunc {
 // fieldInReason reads the field a JSON Schema refusal is about from
 // kin-openapi's reason (an OpenAPI 3.1 document is checked by
 // santhosh-tekuri/jsonschema): "missing property 'x'", "additional
-// properties 'x' not allowed", or "at '/x': …".
-var fieldInReason = regexp.MustCompile(`(?:missing propert(?:y|ies)|additional propert(?:y|ies)) '([^']+)'|at '/([^/']+)`)
+// properties 'x' not allowed", or "at '/x': …"; or, for a body with an anyOf
+// in it, from kin-openapi's own: `property "x" is missing` or `… is unsupported`.
+var fieldInReason = regexp.MustCompile(`(?:missing propert(?:y|ies)|additional propert(?:y|ies)) '([^']+)'|at '/([^/']+)|property "([^"]+)" is (?:missing|unsupported)`)
 
 // invalid is a request the contract refuses, on the field it names when it names one.
 func invalid(err error) error {
@@ -147,7 +148,7 @@ func invalid(err error) error {
 
 	if schemaErr, isSchema := reqErr.Err.(*openapi3.SchemaError); isSchema { //nolint:errorlint // RequestError keeps it in Err, unwrapped
 		if m := fieldInReason.FindStringSubmatch(schemaErr.Reason); m != nil {
-			field := m[1] + m[2]
+			field := m[1] + m[2] + m[3]
 			if schemaErr.SchemaField == "required" {
 				return problem.Malformed(field, "This is needed.")
 			}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/tinhthanh/go-service-template/internal/platform/problem"
@@ -12,6 +13,8 @@ import (
 )
 
 // PGStore keeps projects in Postgres, through the queries sqlc made of queries.sql.
+// An id that isn't a UUID is no project: it is answered without a query, so
+// the queries compare ids as UUIDs and the primary key's index serves them.
 type PGStore struct {
 	q *db.Queries
 }
@@ -44,6 +47,10 @@ func (s *PGStore) List(ctx context.Context, q *Query) ([]Project, int, error) {
 
 // Get -.
 func (s *PGStore) Get(ctx context.Context, id string) (Project, error) {
+	if uuid.Validate(id) != nil {
+		return Project{}, problem.ErrNotFound
+	}
+
 	row, err := s.q.Project(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Project{}, problem.ErrNotFound
@@ -58,7 +65,12 @@ func (s *PGStore) Get(ctx context.Context, id string) (Project, error) {
 
 // NameTaken -.
 func (s *PGStore) NameTaken(ctx context.Context, workspace, name, otherThan string) (bool, error) {
-	taken, err := s.q.NameTaken(ctx, db.NameTakenParams{WorkspaceID: workspace, Name: name, OtherThan: otherThan})
+	var other *string
+	if uuid.Validate(otherThan) == nil {
+		other = &otherThan
+	}
+
+	taken, err := s.q.NameTaken(ctx, db.NameTakenParams{WorkspaceID: workspace, Name: name, OtherThan: other})
 	if err != nil {
 		return false, fmt.Errorf("projects store: name: %w", err)
 	}
@@ -78,6 +90,10 @@ func (s *PGStore) Create(ctx context.Context, p *Project) (Project, error) {
 
 // Update -.
 func (s *PGStore) Update(ctx context.Context, p *Project) (Project, error) {
+	if uuid.Validate(p.ID) != nil {
+		return Project{}, problem.ErrNotFound
+	}
+
 	row, err := s.q.UpdateProject(ctx, db.UpdateProjectParams{ID: p.ID, Name: p.Name, Description: p.Description, Status: p.Status, Tags: p.Tags})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Project{}, problem.ErrNotFound
@@ -92,6 +108,10 @@ func (s *PGStore) Update(ctx context.Context, p *Project) (Project, error) {
 
 // Delete -.
 func (s *PGStore) Delete(ctx context.Context, id string) error {
+	if uuid.Validate(id) != nil {
+		return problem.ErrNotFound
+	}
+
 	if err := s.q.DeleteProject(ctx, id); err != nil {
 		return fmt.Errorf("projects store: delete: %w", err)
 	}

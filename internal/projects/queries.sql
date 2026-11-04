@@ -29,10 +29,10 @@ WHERE workspace_id = ANY (@workspaces::text[])
   AND tags @> @tags::text[];
 
 -- name: Project :one
-SELECT * FROM projects WHERE id::text = @id::text;
+SELECT * FROM projects WHERE id = @id;
 
 -- name: NameTaken :one
-SELECT EXISTS (SELECT 1 FROM projects WHERE workspace_id = @workspace_id AND lower(name) = lower(@name) AND id::text <> @other_than::text);
+SELECT EXISTS (SELECT 1 FROM projects WHERE workspace_id = @workspace_id AND lower(name) = lower(@name) AND id IS DISTINCT FROM sqlc.narg('other_than')::uuid);
 
 -- name: CreateProject :one
 INSERT INTO projects (workspace_id, name, description, owner)
@@ -41,11 +41,11 @@ RETURNING *;
 
 -- name: UpdateProject :one
 UPDATE projects SET name = @name, description = @description, status = @status, tags = @tags, updated_at = now()
-WHERE id::text = @id::text
+WHERE id = @id
 RETURNING *;
 
 -- name: DeleteProject :exec
-DELETE FROM projects WHERE id::text = @id::text;
+DELETE FROM projects WHERE id = @id;
 
 -- name: Tags :many
 SELECT DISTINCT unnest(tags)::text AS tag FROM projects WHERE workspace_id = ANY (@workspaces::text[]) ORDER BY 1;

@@ -4,6 +4,8 @@ What a client of the service would notice, newest first.
 
 ## Unreleased
 
+- A request with a field the contract doesn't have, or without one it needs, names that `field`
+  for a body with an `anyOf` in it too (a task's).
 - What each operation needs is read from the contract's `x-permission` and `x-roles`, and checked
   before any handler: an operation not built yet refuses a caller its role doesn't allow (401, 403)
   before it answers 501.

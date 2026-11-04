@@ -73,7 +73,7 @@ func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (P
 }
 
 const deleteProject = `-- name: DeleteProject :exec
-DELETE FROM projects WHERE id::text = $1::text
+DELETE FROM projects WHERE id = $1
 `
 
 func (q *Queries) DeleteProject(ctx context.Context, id string) error {
@@ -155,13 +155,13 @@ func (q *Queries) ListProjects(ctx context.Context, arg ListProjectsParams) ([]P
 }
 
 const nameTaken = `-- name: NameTaken :one
-SELECT EXISTS (SELECT 1 FROM projects WHERE workspace_id = $1 AND lower(name) = lower($2) AND id::text <> $3::text)
+SELECT EXISTS (SELECT 1 FROM projects WHERE workspace_id = $1 AND lower(name) = lower($2) AND id IS DISTINCT FROM $3::uuid)
 `
 
 type NameTakenParams struct {
 	WorkspaceID string
 	Name        string
-	OtherThan   string
+	OtherThan   *string
 }
 
 func (q *Queries) NameTaken(ctx context.Context, arg NameTakenParams) (bool, error) {
@@ -172,7 +172,7 @@ func (q *Queries) NameTaken(ctx context.Context, arg NameTakenParams) (bool, err
 }
 
 const project = `-- name: Project :one
-SELECT id, workspace_id, name, description, status, owner, tags, created_at, updated_at FROM projects WHERE id::text = $1::text
+SELECT id, workspace_id, name, description, status, owner, tags, created_at, updated_at FROM projects WHERE id = $1
 `
 
 func (q *Queries) Project(ctx context.Context, id string) (Project, error) {
@@ -218,7 +218,7 @@ func (q *Queries) Tags(ctx context.Context, workspaces []string) ([]string, erro
 
 const updateProject = `-- name: UpdateProject :one
 UPDATE projects SET name = $1, description = $2, status = $3, tags = $4, updated_at = now()
-WHERE id::text = $5::text
+WHERE id = $5
 RETURNING id, workspace_id, name, description, status, owner, tags, created_at, updated_at
 `
 
