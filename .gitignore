@@ -4,3 +4,9 @@
 .env
 .claude/settings.local.json
 coverage.out
+# A binary built at the root by `go build ./tools/<x>` or `./cmd/<x>`.
+/gates
+/hooks
+/seed
+/server
+/stubgen
