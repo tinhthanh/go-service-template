@@ -42,15 +42,49 @@
     ]
   },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "go build -o .claude/bin/hooks ./tools/hooks && .claude/bin/hooks before-bash",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write|MultiEdit",
-        "hooks": [{ "type": "command", "command": "go build -o .claude/bin/hooks ./tools/hooks && .claude/bin/hooks after-edit", "timeout": 120 }]
+        "hooks": [
+          {
+            "type": "command",
+            "command": "go build -o .claude/bin/hooks ./tools/hooks && .claude/bin/hooks after-edit",
+            "timeout": 120
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "go build -o .claude/bin/hooks ./tools/hooks && .claude/bin/hooks after-bash",
+            "timeout": 300
+          }
+        ]
       }
     ],
     "Stop": [
       {
-        "hooks": [{ "type": "command", "command": "go build -o .claude/bin/hooks ./tools/hooks && .claude/bin/hooks stop", "timeout": 600 }]
+        "hooks": [
+          {
+            "type": "command",
+            "command": "go build -o .claude/bin/hooks ./tools/hooks && .claude/bin/hooks stop",
+            "timeout": 600
+          }
+        ]
       }
     ]
   }

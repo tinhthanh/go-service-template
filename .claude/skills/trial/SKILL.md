@@ -9,7 +9,10 @@ description: Measure how well this template guides an agent that has never seen 
 2. **A fresh agent** (no context from this session) in it, told only the task, as a person would
    write it: "Build tasks: the client's tasks, task, createTask, updateTask and deleteTask. Work as
    the repository says; you may not push: write the pull request into PR.md and commit." Don't
-   point it at the skills: finding them is part of what is measured.
+   point it at the skills: finding them is part of what is measured. A new worktree is a
+   workspace Claude Code hasn't been told to trust, and until it is, `.claude/settings.json`'s
+   allowlist is ignored and the agent waits on every command: the person running the trial trusts
+   it (or answers each prompt) before it starts. Don't trust it for them.
 3. **Score it**, against the repository's rules, not taste:
    - `make verify` green; `make gates` with PR.md's title and body green;
    - the operations built answer as the client's mock does (refusals, defaults, roles, scope);
@@ -17,7 +20,10 @@ description: Measure how well this template guides an agent that has never seen 
      Postgres, no role or action named in Go, a CHANGELOG line);
    - no rule bent: no `//nolint` without a reason, no check loosened, no `t.Skip`, no edit to
      generated code or the contract;
-   - the `reviewer` agent (`.claude/agents/reviewer.md`) on its diff.
+   - the `reviewer` agent (`.claude/agents/reviewer.md`) on its diff;
+   - what the hooks saw: in its transcript (`~/.claude/projects/<worktree>/*.jsonl`), how many
+     files it wrote with Edit or Write and how many from the shell, and what each hook said back;
+   - its own claims checked again here (`make verify` from a clean start), not taken from PR.md.
 4. **Write it down** in `docs/trials.md`: the score, what it got wrong, and for each, what in the
    template would have prevented it (a check, a line in a skill, a better error message). Fix the
    template, not the trial's code. A subagent doesn't fire the repository's hooks: say so.

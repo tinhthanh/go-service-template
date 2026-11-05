@@ -58,3 +58,27 @@ that made them (a function that doesn't exist, a generated type used as another)
 
 Not the template's: the prompt said "commit on your branch" while AGENTS.md says to branch, which
 the trial noticed. Its tasks code stays on `trial-2-tasks`, not merged.
+
+## Trial 3 — comments on tasks, client and server together (2026-11-05)
+
+A feature neither repository had, asked of one Claude Code session in two berth worktrees (this
+one and `app-shell-template`'s): the client's side first (its contract, mock, view and tests),
+then `make contract-sync` and the server's.
+
+**Score.** Both sides green when checked again here: `make verify` (on Docker), `make gates` with
+PR.md's title and body and no label; the client's `pnpm check` and both its gates. The contract
+here is the client's byte for byte, synced, not edited. `internal/comments` follows `add-feature`
+(queries in SQL, a store in memory, servertest, four store tests on Postgres, an ADR, a CHANGELOG
+line, no role named in Go); a task of another workspace is 404 to read and to write, and a task
+deleted between the check and the insert is 404, not 500. It ran the `reviewer` on both diffs.
+
+**What it found, and what changed.**
+
+| Finding | Change |
+|---|---|
+| It wrote every Go file from the shell (heredocs, `python3 -`, `sed -i`: 27 writes, 2 by Edit or Write), so the after-edit hook never saw its Go: nothing formatted, vetted or linted at the write, and an edit to generated code or the contract would not have been refused | `before-bash` and `after-bash`: after a shell command, the same checks on every file it changed, each package once; generated code and the contract are refused unless `make` (or sqlc, stubgen) rewrote them |
+| A new worktree isn't a trusted workspace, so the allowlist in `.claude/settings.json` is ignored and the session sat waiting on its first command | `trial` says to trust it before the agent starts, and not on the person's behalf |
+| PR.md said `make verify` was green; checked again here it was red, because Docker had stopped since | Not the trial's fault, but the score is now taken from a run here, not from PR.md (`trial`) |
+
+Not the template's: the client found a test of its own that fails one run in three on `main` too
+(`e2e/tasks.spec.ts:78`); it is the client's to fix. The trial's code stays on `trial-3-comments`.
