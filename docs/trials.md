@@ -82,3 +82,27 @@ deleted between the check and the insert is 404, not 500. It ran the `reviewer` 
 
 Not the template's: the client found a test of its own that fails one run in three on `main` too
 (`e2e/tasks.spec.ts:78`); it is the client's to fix. The trial's code stays on `trial-3-comments`.
+
+## Trial 4 — watching tasks, client and server together (2026-11-05)
+
+The second feature across both repositories in one session, after trial 3's fixes (the hooks see
+what a shell command writes): watch a task or stop, see who watches it, narrow the list to the
+ones you watch; a viewer watches too. The client's contract first, then `make contract-sync`.
+
+**Score.** Both sides green when checked again here: `make verify`, `make gates` (once `PR.md`'s
+title line lost its `#`), the client's `pnpm check` and both its gates; the contract is the
+client's byte for byte. The shell hook did what trial 3 lacked: of 31 writes, 29 from the shell,
+it caught four errors at the write (two `go vet`: the store in memory no longer met the interface,
+a type in a test; a lint rule twice). The `reviewer` found three things and the agent fixed them.
+
+**What it found, and what changed.**
+
+| Finding | Change |
+|---|---|
+| A watch on a task deleted meanwhile was 500 from Postgres (a foreign key) and 404 from the store in memory; trial 3 wrote the same check by hand | `db.Missing(err)` (23503, a constraint named or not), a rule in AGENTS.md, and `add-operation` says both stores answer alike |
+| The test of another workspace's task checked the 404, not that nothing was written | `add-operation`: read it back as its owner |
+| A field added to `Task` turned red every `assert.JSONEq` on a task | `add-operation` says so, and that it is the point |
+| `PR.md`'s first line was `# feat: …`, which the gates take as the title | `open-pr`: the title as GitHub shows it, no `#`; `make proof` strips one |
+| `open-pr` says to branch; the trial's prompt said to commit on the branch it had | `open-pr`: in a trial, the worktree's branch |
+| The session was this repository's, so the client's hooks never ran on the client's side | AGENTS.md (both): run the other's `check-file`, or open a session there |
+
