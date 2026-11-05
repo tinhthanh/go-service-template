@@ -28,7 +28,6 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"time"
 )
 
 const (
@@ -108,12 +107,14 @@ func afterEdit(file string) string {
 	return ""
 }
 
-// markBash notes that a shell command is about to run.
+// markBash notes that a shell command is about to run. The stamp's time is
+// the filesystem's own, as the files the command writes will have: Go's clock
+// is finer than Linux's file times, so a stamp set from it could be later than
+// a file written just after, and that file would go unchecked.
 func markBash() {
 	_ = os.MkdirAll(filepath.Dir(_stamp), 0o750)
+	_ = os.Remove(_stamp)
 	_ = os.WriteFile(_stamp, nil, 0o600)
-	now := time.Now()
-	_ = os.Chtimes(_stamp, now, now)
 }
 
 // afterBash checks each file the command changed as afterEdit would, each
