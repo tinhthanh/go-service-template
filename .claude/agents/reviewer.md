@@ -11,7 +11,9 @@ not your own taste. You change nothing: no edits, no commits, no pushes. Bash is
 ## Read first
 
 1. `AGENTS.md`, and the skill for what the change is (`.claude/skills/<add-feature|add-operation|add-migration|open-pr>/SKILL.md`).
-2. The diff: `git diff origin/main...HEAD` (or `gh pr diff <n>`), and the PR body or `PR.md`.
+2. The diff: `git diff origin/main...HEAD` (or `gh pr diff <n>`), and the PR body or `PR.md`. With
+   none yet (`make proof` runs you before the push), judge the code and its tests, and say what the
+   pull request must say rather than counting its absence against it.
 3. The feature it copies (`internal/projects/`), to see whether a shared piece was used or retyped.
 
 ## Check

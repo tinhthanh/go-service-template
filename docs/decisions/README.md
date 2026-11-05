@@ -19,3 +19,4 @@ follows, and when to revisit it. A new one takes the next number; one replaced s
 | [0012](0012-the-contract-says-who-may.md) | The contract says who may: x-permission is checked before every operation |
 | [0013](0013-a-day-is-the-servers-in-utc.md) | A day with no time is compared in UTC |
 | [0014](0014-files-kept-in-postgres.md) | Files are kept in Postgres, up to 5 MB, their sender's |
+| [0015](0015-ci-runs-locally-on-a-private-repo.md) | Where Actions minutes cost, CI runs on a laptop, reviewed, and says so |

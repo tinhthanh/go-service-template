@@ -8,7 +8,12 @@ description: Write and open a pull request that passes CI and its gates the firs
 CI runs `make verify` and two gates that read the pull request (`tools/gates`): `evidence` and
 `guardrails`. All three run here first, so nothing is learnt from a red CI.
 
-1. **`make verify`** green (Docker running), its last lines kept to paste.
+1. **`make verify`** green (Docker running), its last lines kept to paste. Where CI runs locally
+   (`gh variable get CI_MODE` says `local`, ADR 0015), **`make proof`** instead, with the PR's text
+   in `PR_TITLE`, `PR_BODY`, `PR_LABELS`: the same run on a clean HEAD, the gates, then the reviewer
+   agent's verdict, recorded in `evidence/`. Green and "ready", commit `evidence/` and push; "not
+   ready", fix what `evidence/review.md` says, commit, run it again. The Proof may point at
+   `evidence/verify.json` for that run's results.
 2. **The title**: a lowercase conventional subject that says what the client gets, not what the
    code does: `feat: tasks can be filtered by project`, `fix: a refused save names its field`.
    `chore:`, `docs:`, `test:`, `ci:`, `refactor:`, `build:` say a client won't notice; a change

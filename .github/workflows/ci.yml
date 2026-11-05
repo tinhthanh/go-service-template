@@ -19,7 +19,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Where CI runs locally (the repository variable CI_MODE=local: a private
+  # repository on a free plan, where these minutes are paid for), make proof
+  # runs this job on a laptop, with the reviewer agent, and the gates job
+  # checks its record instead (ADR 0015). It still runs when dispatched (the
+  # owner's check of a record) and on Dependabot's pull requests, which no
+  # laptop verifies.
   verify:
+    if: vars.CI_MODE != 'local' || github.event_name == 'workflow_dispatch' || github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -46,3 +53,7 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body }}
           PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
           PR_ACTOR: ${{ github.event.pull_request.user.login }}
+      # The verify job's stand-in where CI runs locally: make proof's record
+      # is a green, reviewed run of the head's tree (tools/proof).
+      - if: vars.CI_MODE == 'local' && github.event.pull_request.user.login != 'dependabot[bot]'
+        run: go run ./tools/proof check --ref ${{ github.event.pull_request.head.sha }}

@@ -18,7 +18,13 @@ make fmt          # gofumpt + goimports
 make db-up && make seed   # a Postgres on :5432, and the acme people (owner, member, viewer @acme.test)
 make run          # the server on :8080, settings from the environment (.env.example)
 make setup        # once: git hooks (format and lint on commit, make check on push)
+make proof        # where CI runs locally (CI_MODE=local): make verify on a clean HEAD, the gates, the reviewer agent; evidence/
 ```
+
+Where Actions minutes cost (a private repository on a free plan), the repository variable
+`CI_MODE=local` skips CI's verify job, and `make proof` is it (ADR 0015): commit `evidence/` after it
+and push; the pre-push hook and the gates job refuse a head whose tree has no green run with the
+reviewer's verdict "ready". `gh variable get CI_MODE` says which this repository is.
 
 Claude Code runs a hook after each edit (format the file, `go vet` and lint its package; after a
 `.sql` file, sqlc against the migrations, so a wrong column shows at once), the same after a shell
@@ -134,7 +140,8 @@ operation of a feature), `add-migration`, `open-pr` (CI's gates, run here first)
 
 ## Done means
 
-1. `make check` is green; before a pull request, `make verify` (Docker running).
+1. `make check` is green; before a pull request, `make verify` (Docker running), or `make proof`, its
+   `evidence/` committed, where `CI_MODE=local`.
 2. Every behaviour changed has a test that fails without the change.
 3. A choice the next person would ask about has an ADR in `docs/decisions/`.
 4. A change a client would notice has a line under `## Unreleased` in `CHANGELOG.md`.

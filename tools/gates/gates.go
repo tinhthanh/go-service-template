@@ -41,7 +41,7 @@ func guarded(f string) bool {
 		// sqlc.yaml is not here: it lists each feature's queries, and every new feature adds to it.
 		`^\.golangci\.yml$`, `^Makefile$`, `^api/oapi-codegen\.yaml$`,
 		`^\.github/`, `^\.githooks/`, `^\.claude/`, `^AGENTS\.md$`, `^CLAUDE\.md$`,
-		`^tools/(gates|hooks|stubgen)/`, `^internal/archtest/`, `^internal/platform/(contracttest|dbtest)/`,
+		`^tools/(gates|hooks|proof|stubgen)/`, `^internal/archtest/`, `^internal/platform/(contracttest|dbtest)/`,
 	} {
 		if regexp.MustCompile(p).MatchString(f) {
 			return true
