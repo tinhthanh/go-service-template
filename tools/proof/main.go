@@ -246,7 +246,7 @@ func prOf(ctx context.Context) *PR {
 	if raw, err := os.ReadFile("PR.md"); err == nil {
 		title, body, _ := strings.Cut(string(raw), "\n")
 
-		return &PR{Title: title, Body: strings.TrimSpace(body)}
+		return &PR{Title: strings.TrimPrefix(strings.TrimSpace(title), "# "), Body: strings.TrimSpace(body)}
 	}
 
 	return nil

@@ -37,5 +37,7 @@ CI runs `make verify` and two gates that read the pull request (`tools/gates`): 
    git push -u origin <branch>                  # pre-push runs make check
    gh pr create --base main --title "…" --body-file pr.md [--label guardrail-change]
    ```
-   In a trial, or wherever you may not push: write the title and body into `PR.md` and commit it.
+   In a trial, or wherever you may not push: write the title and body into `PR.md` and commit it,
+   on the branch the worktree is on. Its first line is the title as GitHub shows it (`feat: …`, no
+   `#` before it), then a blank line, then the body: `make gates` and `make proof` read it so.
 8. Watch it: `gh pr checks <n>`. Red: the `fix-ci` skill.

@@ -6,11 +6,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5" // the pgx5:// driver
 	"github.com/golang-migrate/migrate/v4/source/iofs"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/tinhthanh/go-service-template/migrations"
@@ -62,4 +64,21 @@ func migrateURL(url string) string {
 	}
 
 	return url
+}
+
+// foreignKeyViolation is Postgres's code for a row that names one that isn't there.
+const foreignKeyViolation = "23503"
+
+// Missing says whether a write failed because a row it names was deleted
+// since the service checked it (a task deleted while a comment was being
+// written on it): the store answers problem.ErrNotFound for that, as the
+// check would have, never a 500. constraint, when given, narrows it to that
+// foreign key, so a write naming two rows says which one went.
+func Missing(err error, constraint ...string) bool {
+	var pg *pgconn.PgError
+	if !errors.As(err, &pg) || pg.Code != foreignKeyViolation {
+		return false
+	}
+
+	return len(constraint) == 0 || slices.Contains(constraint, pg.ConstraintName)
 }

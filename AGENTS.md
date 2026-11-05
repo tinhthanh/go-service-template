@@ -26,6 +26,10 @@ Where Actions minutes cost (a private repository on a free plan), the repository
 and push; the pre-push hook and the gates job refuse a head whose tree has no green run with the
 reviewer's verdict "ready". `gh variable get CI_MODE` says which this repository is.
 
+A session opened here that also works on the client runs this repository's hooks only: the
+client's side is checked by its own (`node <client>/scripts/check-file.mjs <file>` after each write
+there), or from a session opened in it.
+
 Claude Code runs a hook after each edit (format the file, `go vet` and lint its package; after a
 `.sql` file, sqlc against the migrations, so a wrong column shows at once), the same after a shell
 command on every file it changed (a heredoc, `sed -i`), and `make check` before it stops
@@ -103,6 +107,8 @@ person typed are matched with `strpos`, never `LIKE`, so they are never a patter
   `internal/platform` knows no feature. `internal/archtest` fails the build otherwise, for tests too.
   In SQL a feature may read another's table, to show it (a task's project name, by JOIN) or to check
   it (the project is in the task's workspace), but never writes it.
+- **A write that names a row deleted meanwhile** (Postgres 23503, a foreign key) is
+  `problem.ErrNotFound`, as the check before it would have said: `db.Missing(err)` in the store.
 - **Errors** are wrapped with `%w` and context (`fmt.Errorf("projects: store: %w", err)`), compared
   with `errors.Is`/`errors.As`, handled once (returned or logged, never both).
 - **Context** is the first argument of anything that does I/O, and is never kept in a struct.
