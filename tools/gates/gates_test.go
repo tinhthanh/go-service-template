@@ -122,3 +122,10 @@ func TestAdded_ReadsEachFilesAddedLines(t *testing.T) {
 
 	assert.Equal(t, map[string][]string{"x.go": {"new", "more"}}, got)
 }
+
+func TestGates_WithNoPullRequestNamedTheLabelsAreTheOnesGiven(t *testing.T) {
+	t.Setenv("PR_NUMBER", "")
+	t.Setenv("PR_LABELS", "guardrail-change,dependencies")
+
+	assert.Equal(t, "guardrail-change,dependencies", labels())
+}

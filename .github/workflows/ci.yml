@@ -13,6 +13,8 @@ on:
 
 permissions:
   contents: read
+  # The gates read the PR's labels as they are now (gh pr view).
+  pull-requests: read
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -53,6 +55,9 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body }}
           PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
           PR_ACTOR: ${{ github.event.pull_request.user.login }}
+          # The labels as they are when it runs, not as its event saw them (tools/gates says why).
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
       # The verify job's stand-in where CI runs locally: make proof's record
       # is a green, reviewed run of the head's tree (tools/proof).
       - if: vars.CI_MODE == 'local' && github.event.pull_request.user.login != 'dependabot[bot]'

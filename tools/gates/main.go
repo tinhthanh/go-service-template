@@ -3,12 +3,14 @@
 //	go run ./tools/gates evidence     a test for a change, the changelog, the title, a feat's Assumptions and Not done
 //	go run ./tools/gates guardrails   no t.Skip or bare //nolint added; the checks changed only with the guardrail-change label
 //
-// CI gives it the PR in env: PR_TITLE, PR_BODY, PR_LABELS (comma-separated),
+// CI gives it the PR in env: PR_TITLE, PR_BODY, PR_LABELS (comma-separated; with
+// PR_NUMBER the labels are read from the PR as it is now, with gh),
 // PR_ACTOR and BASE_SHA. Locally the same env, with the diff against
 // origin/main (make gates; the open-pr skill).
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -69,13 +71,28 @@ func read() (*PR, error) {
 		Changed: strings.Fields(changed), Added: added(diff),
 	}
 
-	for l := range strings.SplitSeq(os.Getenv("PR_LABELS"), ",") {
+	for l := range strings.SplitSeq(labels(), ",") {
 		if l = strings.TrimSpace(l); l != "" {
 			pr.Labels = append(pr.Labels, l)
 		}
 	}
 
 	return pr, nil
+}
+
+// labels is the PR's labels as they are now, read from GitHub when CI names
+// the PR (PR_NUMBER): opening a PR with a label starts two runs, and the one
+// the label's event started can be the one cancelled, leaving a run whose
+// event saw none. PR_LABELS when gh can't say (locally, before the PR exists).
+func labels() string {
+	if n := os.Getenv("PR_NUMBER"); n != "" {
+		out, err := exec.CommandContext(context.Background(), "gh", "pr", "view", n, "--json", "labels", "-q", `[.labels[].name] | join(",")`).Output() //nolint:gosec // gh with this program's own arguments and the PR's number
+		if err == nil {
+			return strings.TrimSpace(string(out))
+		}
+	}
+
+	return os.Getenv("PR_LABELS")
 }
 
 // added is each file's added lines, from a unified diff.
