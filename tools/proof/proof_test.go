@@ -72,6 +72,11 @@ func TestProof_TheReviewerIsGivenOnlyToolsThatReadAndNoSettingsThatWouldLetMoreT
 	assert.Equal(t, "Bash(*--output*)", after("--disallowedTools"))
 	assert.JSONEq(t, `{"reviewer": {"description": "Reads a diff.", "prompt": "You review.", "tools": ["Read", "Grep", "Glob", "Bash"]}}`, after("--agents"))
 
+	between := func(from, to string) []string { return args[indexOf(args, from)+1 : indexOf(args, to)] }
+	assert.Equal(t, []string{"Read", "Grep", "Glob", "Bash"}, between("--tools", "--allowedTools"))
+	assert.Equal(t, reviewTools(), between("--allowedTools", "--disallowedTools"))
+	assert.Equal(t, []string{"Bash(*--output*)"}, between("--disallowedTools", "--output-format"))
+
 	for _, tool := range reviewTools() {
 		assert.Regexp(t, `^(Read|Grep|Glob|Bash\((git (diff|log|show)|gh pr (view|diff)):\*\))$`, tool)
 	}

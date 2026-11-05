@@ -14,7 +14,7 @@ import (
 // The refusals, said by main.
 var (
 	errNoFrontmatter = errors.New("the reviewer's file has no frontmatter")
-	errUsage         = errors.New("run or check")
+	errUsage         = errors.New("run, check, or check --ref <sha>")
 	errNoCommit      = errors.New("no such commit")
 	errNoProof       = errors.New("no green run of its own (ADR 0015)")
 	errDirty         = errors.New("uncommitted changes: the run and its record are of a commit, so commit first")

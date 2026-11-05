@@ -36,12 +36,15 @@ func main() {
 	case "run":
 		err = run(context.Background())
 	case "check":
-		ref := "HEAD"
-		if len(os.Args) > 3 && os.Args[2] == "--ref" {
-			ref = os.Args[3]
+		switch {
+		case len(os.Args) == 2:
+			err = check(context.Background(), "HEAD")
+		case len(os.Args) == 4 && os.Args[2] == "--ref" && os.Args[3] != "":
+			err = check(context.Background(), os.Args[3])
+		default:
+			// An empty --ref (a CI expression that came out blank) is refused, never taken as HEAD.
+			err = errUsage
 		}
-
-		err = check(context.Background(), ref)
 	default:
 		err = errUsage
 	}
@@ -56,7 +59,7 @@ func main() {
 func check(ctx context.Context, ref string) error {
 	listed, err := git(ctx, "ls-tree", "-r", ref)
 	if err != nil {
-		return fmt.Errorf("%w: %s", errNoCommit, ref)
+		return fmt.Errorf("%w: %s: %w", errNoCommit, ref, err)
 	}
 
 	raw, err := git(ctx, "show", ref+":"+recordPath)

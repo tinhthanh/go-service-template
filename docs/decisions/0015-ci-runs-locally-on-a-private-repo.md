@@ -24,7 +24,9 @@ requests. `evidence/` is committed only there; this template, public, keeps the 
 a laptop said, not a signature (an agent could write one): its tree must be the head's, and the
 owner can dispatch `ci.yml` on any commit. A review costs Claude tokens; its verdict is advice, and
 the owner still reads before merging. Without rulesets the hook is the gate, and a hook can be
-skipped. What `main` gets from a squash merge is a tree nobody ran, and two open pull requests each
+skipped, and lets a push by when `gh` can't ask (the gates job still checks). Read-only rests on
+Claude Code's own refusals (a redirect, a chained command) and on git config running no diff
+driver. What `main` gets from a squash merge is a tree nobody ran, and two open pull requests each
 commit `evidence/`: the second rebases, and proves again.
 
 **Revisit if.** The plan changes (paid minutes, rulesets) or a self-hosted runner is set up (its
