@@ -78,6 +78,14 @@ gates: ## The pull request's gates on what is committed: PR_TITLE, PR_BODY, PR_L
 	go run ./tools/gates guardrails
 .PHONY: gates
 
+proof: ## Where CI runs locally (CI_MODE=local): make verify on a clean copy of HEAD, the gates, the reviewer agent; writes evidence/ (ADR 0015)
+	go run ./tools/proof run
+.PHONY: proof
+
+proof-check: ## evidence/verify.json is a green, reviewed run of HEAD's tree (the pre-push hook runs it where CI_MODE=local)
+	go run ./tools/proof check
+.PHONY: proof-check
+
 contract-sync: ## Copy the client's contract in: make contract-sync FROM=<the client's repository>
 	@test -n "$(FROM)" || (echo "contract-sync: make contract-sync FROM=<the client's repository, with api/openapi.json>"; exit 1)
 	cp "$(FROM)/api/openapi.json" api/openapi.json

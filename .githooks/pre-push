@@ -1,5 +1,26 @@
 #!/bin/sh
 # make check before a push: generated code current, lint, every test.
 # make verify adds what CI adds (tidy modules, vulnerabilities): run it before a pull request.
+# Where CI runs locally (the repository variable CI_MODE=local, ADR 0015), the
+# head of each branch pushed also needs make proof's record of its tree,
+# green and reviewed ready, since nothing runs make verify after it. A tag
+# (a release, made from main) isn't checked.
+# git gives the hook what is pushed on stdin: <ref> <sha> <remote ref> <remote sha>.
 set -e
+# The refs first: nothing the checks run may read them away.
+refs=$(cat)
 make -s check
+# Empty when the variable isn't set; a failure only when gh can't ask.
+if ! mode=$(gh variable list --json name,value -q '.[] | select(.name=="CI_MODE") | .value' 2>/dev/null); then
+  echo "pre-push: couldn't ask GitHub whether CI runs locally here (gh auth status); if it does, run make proof before you ask for a merge." >&2
+  exit 0
+fi
+[ "$mode" = "local" ] || exit 0
+echo "$refs" | while read -r _ sha remote _; do
+  case "$remote" in refs/heads/*) ;; *) continue ;; esac
+  case "$sha" in *[!0]*) ;; *) continue ;; esac # a deletion pushes no commit
+  if ! go run ./tools/proof check --ref "$sha"; then
+    echo "pre-push: CI runs locally here (CI_MODE=local): run make proof, commit evidence/, and push again." >&2
+    exit 1
+  fi
+done
