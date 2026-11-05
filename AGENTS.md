@@ -21,9 +21,11 @@ make setup        # once: git hooks (format and lint on commit, make check on pu
 ```
 
 Claude Code runs a hook after each edit (format the file, `go vet` and lint its package; after a
-`.sql` file, sqlc against the migrations, so a wrong column shows at once) and `make check` before it
-stops (`.claude/settings.json`, `tools/hooks`): fix what they say before the next edit. Generated
-files and the contract are refused. Force pushes, pushes to `main` and `--no-verify` are refused.
+`.sql` file, sqlc against the migrations, so a wrong column shows at once), the same after a shell
+command on every file it changed (a heredoc, `sed -i`), and `make check` before it stops
+(`.claude/settings.json`, `tools/hooks`): fix what they say before the next edit. Generated files
+and the contract are refused, unless `make` rewrote them. Force pushes, pushes to `main` and
+`--no-verify` are refused.
 
 ## Map
 
