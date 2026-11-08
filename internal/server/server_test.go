@@ -88,6 +88,27 @@ func TestServer_ARequestTheContractRefusesIsInvalidOnItsField(t *testing.T) {
 	assert.Contains(t, string(status.Body), `"field":"status"`)
 }
 
+// encoding/json takes text that isn't UTF-8 and keeps U+FFFD in its place, and keeps the last of a
+// name sent twice; the service refuses both on the field, before the contract (ADR 0016).
+func TestServer_ABodyThatIsntWellFormedJSONIsRefusedOnItsFieldNotKeptChanged(t *testing.T) {
+	t.Parallel()
+
+	s := servertest.New(t)
+	owner := s.As(servertest.Owner)
+
+	broken := s.Do(http.MethodPost, "/projects", "{\"name\": \"A\xff\xfeB\", \"description\": \"x\"}", owner)
+	assert.Equal(t, http.StatusBadRequest, broken.Status, string(broken.Body))
+	assert.JSONEq(t, `{"error": "This value isn't accepted here.", "code": "invalid", "field": "name"}`, string(broken.Body))
+
+	twice := s.Do(http.MethodPost, "/projects", `{"name": "Shop", "description": "x", "description": "y"}`, owner)
+	assert.Equal(t, http.StatusBadRequest, twice.Status)
+	assert.Contains(t, string(twice.Body), `"field":"description"`)
+
+	surrogate := s.Do(http.MethodPost, "/tasks", `{"title": "\ud800"}`, owner)
+	assert.Equal(t, http.StatusBadRequest, surrogate.Status, "a lone surrogate, as JSON.stringify escapes one")
+	assert.Contains(t, string(surrogate.Body), `"field":"title"`)
+}
+
 func TestServer_EveryAnswerCarriesARequestIDAndSecurityHeaders(t *testing.T) {
 	t.Parallel()
 

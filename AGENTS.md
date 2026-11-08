@@ -88,6 +88,9 @@ tools/                  stubgen (the 501 stubs), hooks (Claude Code's)
   contract sends no time zone.
 - A PATCH field the contract lets be `null` ("takes it off") is generated as a pointer, nil for null
   and for left out alike: `httpx.SentNull(ctx, "due")` tells them apart.
+- A JSON body reaches a handler well-formed (`httpx.WellFormed`, ADR 0016): valid UTF-8, no name
+  twice. Decode with `encoding/json` as the generated code does; don't add `encoding/json/v2` calls
+  beside it, and don't check the bytes again in a handler.
 
 ## Lists
 

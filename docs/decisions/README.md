@@ -20,3 +20,4 @@ follows, and when to revisit it. A new one takes the next number; one replaced s
 | [0013](0013-a-day-is-the-servers-in-utc.md) | A day with no time is compared in UTC |
 | [0014](0014-files-kept-in-postgres.md) | Files are kept in Postgres, up to 5 MB, their sender's |
 | [0015](0015-ci-runs-locally-on-a-private-repo.md) | Where Actions minutes cost, CI runs on a laptop, reviewed, and says so |
+| [0016](0016-json-is-held-to-rfc-8259.md) | A JSON body is held to RFC 8259 as it was sent: text that isn't UTF-8 or a name sent twice is refused |
