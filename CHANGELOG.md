@@ -4,6 +4,9 @@ What a client of the service would notice, newest first.
 
 ## Unreleased
 
+- A JSON body with text that isn't UTF-8 (a lone surrogate included) or a name sent twice in one
+  object is refused with 400 `invalid` on the field it is in, where it was kept with U+FFFD in
+  place of what was sent, or the last of the two kept (ADR 0016).
 - `POST /api/files` keeps the file the client sends (its name from `X-File-Name`, up to 5 MB;
   more is 422 on `attachment`), and a task names it by the id answered: its `attachment` shows it,
   `null` takes it off, and a file someone else sent is 422 on `attachment`. Every operation of the

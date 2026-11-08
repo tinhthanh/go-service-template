@@ -107,9 +107,10 @@ func New(cfg *config.Config, log *slog.Logger, f Features) (http.Handler, error)
 	})
 
 	mux := http.NewServeMux()
-	// A write needs the app's header (CSRF), then the caller is found, then the fields a change sends as
+	// A write needs the app's header (CSRF), then the caller is found, then a JSON body is held to RFC 8259
+	// as sent (httpx.WellFormed: no text that isn't UTF-8, no name twice), then the fields a change sends as
 	// null are noted (httpx.Nulls), then the request is held to the contract.
-	guarded := httpx.Chain(validate(contract), httpx.MaxBody(maxBody), auth.CSRF(log), auth.Middleware(f.Auth, log), httpx.Nulls())
+	guarded := httpx.Chain(validate(contract), httpx.MaxBody(maxBody), auth.CSRF(log), auth.Middleware(f.Auth, log), httpx.WellFormed(log), httpx.Nulls())
 	mux.Handle(cfg.APIPrefix+"/", http.StripPrefix(cfg.APIPrefix, guarded))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
 
